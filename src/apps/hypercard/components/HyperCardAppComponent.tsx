@@ -506,9 +506,9 @@ export function HyperCardAppComponent({
           {currentStack ? (
             <div className="flex-1 flex gap-2 p-2">
               {/* Tools Palette */}
-              <div className="flex flex-col gap-2 w-[84px] shrink-0">
+              <div className="flex flex-col gap-2 w-[126px] shrink-0">
                 <div className="bg-white border border-black w-full shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
-                  <div className="grid grid-cols-2 gap-0 p-1">
+                  <div className="grid grid-cols-3 gap-0 p-1">
                     {TOOLS.map((tool: Tool) => (
                       <Button
                         key={tool.id}

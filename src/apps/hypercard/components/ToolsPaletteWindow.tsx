@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 
 // Export the TOOLS constant
 export const TOOLS = [
-  // Basic Tools
+  // Basic Tools (Top Row)
   { id: "browse", name: "Browse", icon: "👆" },
   { id: "button", name: "Button", icon: "🔘" },
   { id: "field", name: "Field", icon: "📝" },
-  // Drawing
+  // Drawing Tools
   { id: "pen", name: "Pen", icon: "✏️" },
   { id: "eraser", name: "Eraser", icon: "🧹" },
   { id: "spray", name: "Spray", icon: "🎨" },
