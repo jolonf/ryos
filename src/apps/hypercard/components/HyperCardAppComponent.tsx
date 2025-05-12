@@ -57,6 +57,13 @@ interface CardComponentProps {
   selectedTool: ToolId | null;
 }
 
+// Add a more explicit selection state
+interface SelectionState {
+  type: 'button' | 'card' | 'background' | null;
+  id: string | null;
+  isBackground: boolean;
+}
+
 export function HyperCardAppComponent({
   onClose,
   isWindowOpen,
@@ -384,25 +391,160 @@ export function HyperCardAppComponent({
   // Add tools palette state
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
 
-  // Add property inspector state
-  const [isPropertyInspectorVisible, setIsPropertyInspectorVisible] = useState(false);
-  const [inspectorSelection, setInspectorSelection] = useState<InspectorSelection | null>(null);
+  // Replace separate selection states with a single selection state
+  const [selection, setSelection] = useState<SelectionState>({
+    type: null,
+    id: null,
+    isBackground: false
+  });
 
   // Update selection when card changes or background mode changes
   useEffect(() => {
     if (currentStack) {
       if (isEditingBackground) {
-        setInspectorSelection({ type: "background", id: currentStack.background.id });
+        setSelection({
+          type: 'background',
+          id: currentStack.background.id,
+          isBackground: true
+        });
       } else if (currentStack.cards[currentStack.currentCardIndex]) {
-        setInspectorSelection({ 
-          type: "card", 
-          id: currentStack.cards[currentStack.currentCardIndex].id 
+        setSelection({
+          type: 'card',
+          id: currentStack.cards[currentStack.currentCardIndex].id,
+          isBackground: false
         });
       }
     } else {
-      setInspectorSelection(null);
+      setSelection({ type: null, id: null, isBackground: false });
     }
   }, [currentStack, isEditingBackground]);
+
+  // Handle tool changes
+  useEffect(() => {
+    // Clear button selection when switching away from button tool
+    if (selectedTool !== 'button' && selection.type === 'button') {
+      setSelection({
+        type: isEditingBackground ? 'background' : 'card',
+        id: isEditingBackground ? currentStack?.background.id || null : currentStack?.cards[currentStack?.currentCardIndex || 0]?.id || null,
+        isBackground: isEditingBackground
+      });
+    }
+  }, [selectedTool, currentStack, isEditingBackground]);
+
+  // Unified selection handler
+  const handleSelection = useCallback((type: SelectionState['type'], id: string | null, isBackground: boolean) => {
+    setSelection({ type, id, isBackground });
+    
+    // Update inspector selection
+    if (type === 'button' && id) {
+      setInspectorSelection({ type: 'button', id });
+    } else if (type === 'background') {
+      setInspectorSelection({ type: 'background', id: currentStack?.background.id || '' });
+    } else if (type === 'card') {
+      setInspectorSelection({ 
+        type: 'card', 
+        id: currentStack?.cards[currentStack?.currentCardIndex || 0]?.id || '' 
+      });
+    }
+  }, [currentStack]);
+
+  // Add button selection state
+  const [selectedButtonId, setSelectedButtonId] = useState<string | null>(null);
+
+  // Handle button selection
+  const handleSelectButton = useCallback((button: HyperCardButton | null, isBackground: boolean) => {
+    console.log('handleSelectButton called with:', { 
+      buttonId: button?.id, 
+      isBackground,
+      currentSelection: selectedButtonId,
+      stackUpdatePending: isModified
+    });
+    
+    setSelectedButtonId(button?.id || null);
+    
+    // Update inspector selection
+    if (button) {
+      setInspectorSelection({ type: "button", id: button.id });
+    } else if (isEditingBackground) {
+      setInspectorSelection({ type: "background", id: currentStack?.background.id || "" });
+    } else if (currentStack?.cards[currentStack.currentCardIndex]) {
+      setInspectorSelection({ 
+        type: "card", 
+        id: currentStack.cards[currentStack.currentCardIndex].id 
+      });
+    }
+  }, [currentStack, isEditingBackground, selectedButtonId, isModified]);
+
+  const handleAddButton = useCallback((button: HyperCardButton, isBackground: boolean) => {
+    console.log('handleAddButton called with:', { 
+      buttonId: button.id, 
+      isBackground,
+      currentSelection: selectedButtonId,
+      stackUpdatePending: isModified
+    });
+
+    if (!currentStack) return;
+
+    const currentCard = currentStack.cards[currentStack.currentCardIndex];
+    if (!currentCard) return;
+
+    // Create a new card object with the updated buttons
+    const updatedCard: Card = {
+      ...currentCard,
+      foreground: isBackground ? currentCard.foreground : {
+        ...currentCard.foreground,
+        buttons: [...currentCard.foreground.buttons, button]
+      },
+      background: isBackground ? {
+        ...currentCard.background,
+        buttons: [...currentCard.background.buttons, button]
+      } : currentCard.background
+    };
+
+    // Update the stack with the new card
+    const updatedStack: HyperCardStack = {
+      ...currentStack,
+      cards: currentStack.cards.map((card, index) => 
+        index === currentStack.currentCardIndex ? updatedCard : card
+      )
+    };
+
+    console.log('About to update stack state:', {
+      buttonId: button.id,
+      currentSelection: selectedButtonId,
+      willSelect: true
+    });
+
+    // Update the stack state
+    useStackStore.setState({
+      currentStack: updatedStack,
+      isModified: true
+    });
+
+    // Select the newly created button
+    setSelectedButtonId(button.id);
+    setInspectorSelection({ type: "button", id: button.id });
+
+    console.log('Stack and selection updated:', {
+      buttonId: button.id,
+      newSelection: button.id,
+      stackModified: true
+    });
+  }, [currentStack, selectedButtonId, isModified]);
+
+  // Add an effect to monitor selection changes
+  useEffect(() => {
+    console.log('Selection changed:', {
+      newSelection: selectedButtonId,
+      stackModified: isModified,
+      currentStackId: currentStack?.id,
+      currentCardIndex: currentStack?.currentCardIndex
+    });
+  }, [selectedButtonId, isModified, currentStack]);
+
+  // Add property inspector state
+  const [isPropertyInspectorVisible, setIsPropertyInspectorVisible] = useState(false);
+  const [inspectorSelection, setInspectorSelection] = useState<InspectorSelection | null>(null);
 
   // Handle stack updates
   const handleStackUpdate = async (updates: Partial<HyperCardStack>) => {
@@ -454,59 +596,6 @@ export function HyperCardAppComponent({
       toast.error("Failed to update card");
     }
   };
-
-  const handleAddButton = useCallback((button: HyperCardButton, isBackground: boolean) => {
-    if (!currentStack) return;
-
-    const currentCard = currentStack.cards[currentStack.currentCardIndex];
-    if (!currentCard) return;
-
-    // Create a new card object with the updated buttons
-    const updatedCard: Card = {
-      ...currentCard,
-      foreground: isBackground ? currentCard.foreground : {
-        ...currentCard.foreground,
-        buttons: [...currentCard.foreground.buttons, button]
-      },
-      background: isBackground ? {
-        ...currentCard.background,
-        buttons: [...currentCard.background.buttons, button]
-      } : currentCard.background
-    };
-
-    // Update the stack with the new card
-    const updatedStack: HyperCardStack = {
-      ...currentStack,
-      cards: currentStack.cards.map((card, index) => 
-        index === currentStack.currentCardIndex ? updatedCard : card
-      )
-    };
-
-    useStackStore.setState({
-      currentStack: updatedStack,
-      isModified: true
-    });
-  }, [currentStack]);
-
-  // Add button selection state
-  const [selectedButtonId, setSelectedButtonId] = useState<string | null>(null);
-
-  // Handle button selection
-  const handleSelectButton = useCallback((button: HyperCardButton | null, isBackground: boolean) => {
-    setSelectedButtonId(button?.id || null);
-    
-    // Update inspector selection
-    if (button) {
-      setInspectorSelection({ type: "button", id: button.id });
-    } else if (isEditingBackground) {
-      setInspectorSelection({ type: "background", id: currentStack?.background.id || "" });
-    } else if (currentStack?.cards[currentStack.currentCardIndex]) {
-      setInspectorSelection({ 
-        type: "card", 
-        id: currentStack.cards[currentStack.currentCardIndex].id 
-      });
-    }
-  }, [currentStack, isEditingBackground]);
 
   const handleUpdateButton = useCallback((button: HyperCardButton, isBackground: boolean) => {
     if (!currentStack) return;
