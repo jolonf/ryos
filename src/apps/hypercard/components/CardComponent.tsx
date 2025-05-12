@@ -14,12 +14,20 @@ interface CardComponentProps {
   onAddButton?: (button: HyperCardButton, isBackground: boolean) => void;
   onSelectButton?: (button: HyperCardButton | null, isBackground: boolean) => void;
   selectedButtonId?: string | null;
+  onUpdateButton?: (button: HyperCardButton, isBackground: boolean) => void;
 }
 
 interface DrawingState {
   isDrawing: boolean;
   startPoint: { x: number; y: number } | null;
   currentPoint: { x: number; y: number } | null;
+}
+
+interface DragState {
+  isDragging: boolean;
+  buttonId: string | null;
+  startPosition: { x: number; y: number } | null;
+  offset: { x: number; y: number } | null;
 }
 
 // Add global styles for button selection
@@ -46,7 +54,8 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   selectedTool,
   onAddButton,
   onSelectButton,
-  selectedButtonId
+  selectedButtonId,
+  onUpdateButton
 }) => {
   // Default card size if not specified (matches classic HyperCard)
   const cardWidth = width || 512;
@@ -57,6 +66,13 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     isDrawing: false,
     startPoint: null,
     currentPoint: null
+  });
+
+  const [dragState, setDragState] = useState<DragState>({
+    isDragging: false,
+    buttonId: null,
+    startPosition: null,
+    offset: null
   });
 
   // Get the current layer (background or foreground)
@@ -93,6 +109,22 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         const button = [...currentLayer.buttons].find(b => b.id === buttonId);
         if (button) {
           onSelectButton(button, isEditingBackground);
+          
+          // Start dragging if we have the button tool selected
+          const rect = buttonElement.getBoundingClientRect();
+          const cardRect = e.currentTarget.getBoundingClientRect();
+          const offset = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+          };
+          
+          setDragState({
+            isDragging: true,
+            buttonId: button.id,
+            startPosition: { x: button.position.x, y: button.position.y },
+            offset
+          });
+          
           e.stopPropagation(); // Prevent card click
           return;
         }
@@ -120,19 +152,46 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   }, [selectedTool, onAddButton, onSelectButton, currentLayer.buttons, isEditingBackground]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!drawingState.isDrawing || !drawingState.startPoint) return;
+    if (dragState.isDragging && dragState.buttonId && dragState.offset && onUpdateButton) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left - dragState.offset.x;
+      const y = e.clientY - rect.top - dragState.offset.y;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+      // Find the button being dragged
+      const button = [...currentLayer.buttons].find(b => b.id === dragState.buttonId);
+      if (button) {
+        // Update the button position
+        onUpdateButton({
+          ...button,
+          position: { x, y }
+        }, isEditingBackground);
+      }
+      return;
+    }
 
-    setDrawingState(prev => ({
-      ...prev,
-      currentPoint: { x, y }
-    }));
-  }, [drawingState.isDrawing, drawingState.startPoint]);
+    if (drawingState.isDrawing && drawingState.startPoint) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      setDrawingState(prev => ({
+        ...prev,
+        currentPoint: { x, y }
+      }));
+    }
+  }, [dragState, drawingState, onUpdateButton, currentLayer.buttons, isEditingBackground]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    if (dragState.isDragging) {
+      setDragState({
+        isDragging: false,
+        buttonId: null,
+        startPosition: null,
+        offset: null
+      });
+      return;
+    }
+
     if (!drawingState.isDrawing || !drawingState.startPoint || !drawingState.currentPoint || !onAddButton) return;
 
     const startX = Math.min(drawingState.startPoint.x, drawingState.currentPoint.x);
@@ -162,7 +221,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       startPoint: null,
       currentPoint: null
     });
-  }, [drawingState, onAddButton, isEditingBackground, currentLayer.buttons.length]);
+  }, [dragState, drawingState, onAddButton, isEditingBackground, currentLayer.buttons.length]);
 
   // Calculate the preview rectangle when drawing
   const getPreviewStyle = () => {
@@ -211,6 +270,17 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     );
   };
 
+  // Update the cursor style based on drag state
+  const getCursorStyle = () => {
+    if (selectedTool === 'button') {
+      if (dragState.isDragging) {
+        return 'grabbing';
+      }
+      return 'crosshair';
+    }
+    return onCardClick ? 'pointer' : 'default';
+  };
+
   return (
     <>
       <style>{buttonSelectionStyles}</style>
@@ -219,7 +289,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         style={{ 
           width: cardWidth, 
           height: cardHeight,
-          cursor: selectedTool === 'button' ? 'crosshair' : (onCardClick ? 'pointer' : 'default')
+          cursor: getCursorStyle()
         }}
         onClick={handleCardClick}
         onMouseDown={handleMouseDown}

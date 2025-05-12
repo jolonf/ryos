@@ -508,6 +508,43 @@ export function HyperCardAppComponent({
     }
   }, [currentStack, isEditingBackground]);
 
+  const handleUpdateButton = useCallback((button: HyperCardButton, isBackground: boolean) => {
+    if (!currentStack) return;
+
+    const currentCard = currentStack.cards[currentStack.currentCardIndex];
+    if (!currentCard) return;
+
+    // Create a new card object with the updated button
+    const updatedCard: Card = {
+      ...currentCard,
+      foreground: isBackground ? currentCard.foreground : {
+        ...currentCard.foreground,
+        buttons: currentCard.foreground.buttons.map(b => 
+          b.id === button.id ? button : b
+        )
+      },
+      background: isBackground ? {
+        ...currentCard.background,
+        buttons: currentCard.background.buttons.map(b => 
+          b.id === button.id ? button : b
+        )
+      } : currentCard.background
+    };
+
+    // Update the stack with the new card
+    const updatedStack: HyperCardStack = {
+      ...currentStack,
+      cards: currentStack.cards.map((card, index) => 
+        index === currentStack.currentCardIndex ? updatedCard : card
+      )
+    };
+
+    useStackStore.setState({
+      currentStack: updatedStack,
+      isModified: true
+    });
+  }, [currentStack]);
+
   if (!isWindowOpen) return null;
 
   return (
@@ -592,6 +629,7 @@ export function HyperCardAppComponent({
                   onAddButton={handleAddButton}
                   onSelectButton={handleSelectButton}
                   selectedButtonId={selectedButtonId}
+                  onUpdateButton={handleUpdateButton}
                 />
               </div>
             </div>
