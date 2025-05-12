@@ -719,6 +719,7 @@ export function HyperCardAppComponent({
                   onSelectButton={handleSelectButton}
                   selectedButtonId={selectedButtonId}
                   onUpdateButton={handleUpdateButton}
+                  onTogglePropertyInspector={() => setIsPropertyInspectorVisible(true)}
                 />
               </div>
             </div>

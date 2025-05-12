@@ -15,6 +15,7 @@ interface CardComponentProps {
   onSelectButton?: (button: HyperCardButton | null, isBackground: boolean) => void;
   selectedButtonId?: string | null;
   onUpdateButton?: (button: HyperCardButton, isBackground: boolean) => void;
+  onTogglePropertyInspector?: () => void;
 }
 
 interface DrawingState {
@@ -65,7 +66,8 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   onAddButton,
   onSelectButton,
   selectedButtonId,
-  onUpdateButton
+  onUpdateButton,
+  onTogglePropertyInspector
 }) => {
   // Default card size if not specified (matches classic HyperCard)
   const cardWidth = width || 512;
@@ -477,6 +479,25 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     return onCardClick ? 'pointer' : 'default';
   };
 
+  // Add double-click handler for buttons
+  const handleButtonDoubleClick = useCallback((e: React.MouseEvent, button: HyperCardButton) => {
+    e.stopPropagation(); // Prevent card click from firing
+    
+    console.log('Button double-click:', {
+      buttonId: button.id,
+      currentSelection: selectedButtonId
+    });
+
+    // Only show property inspector if we're in button tool mode
+    if (selectedTool === 'button' && onTogglePropertyInspector) {
+      // Make sure the button is selected
+      if (onSelectButton && selectedButtonId !== button.id) {
+        onSelectButton(button, isEditingBackground);
+      }
+      onTogglePropertyInspector();
+    }
+  }, [selectedTool, onTogglePropertyInspector, onSelectButton, selectedButtonId, isEditingBackground]);
+
   // Render a button with selection state
   const renderButton = (button: HyperCardButton, isBackground: boolean) => {
     const isSelected = selectedButtonId === button.id;
@@ -493,6 +514,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
           width: button.size.width,
           height: button.size.height,
         }}
+        onDoubleClick={(e) => handleButtonDoubleClick(e, button)}
       >
         <div 
           className={`w-full h-full border ${showSelection ? 'border-dashed border-black button-selection' : 'border-gray-400'} bg-gray-100 flex items-center justify-center`}
