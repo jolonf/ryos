@@ -8,6 +8,7 @@ export const STORES = {
   IMAGES: "images",
   TRASH: "trash",
   CUSTOM_WALLPAPERS: "custom_wallpapers",
+  STACKS: "stacks",
 } as const;
 
 /**

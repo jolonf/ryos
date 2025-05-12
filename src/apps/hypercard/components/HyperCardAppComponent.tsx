@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { WindowFrame } from "@/components/layout/WindowFrame";
 import { AppProps } from "../../base/types";
 import { HelpDialog } from "@/components/dialogs/HelpDialog";
@@ -13,6 +13,7 @@ import { useLaunchApp } from "@/hooks/useLaunchApp";
 import { toast } from "sonner";
 import { HyperCardStack } from "../types/stack";
 import { useFilesStore } from "@/stores/useFilesStore";
+import { useAppStore } from "@/stores/useAppStore";
 
 const HYPERCARD_STACKS_DIR = "/HyperCard Stacks";
 
@@ -50,7 +51,12 @@ export function HyperCardAppComponent({
 
   const launchApp = useLaunchApp();
 
-  // Initialize HyperCard Stacks directory
+  const confirmHandlerRef = useRef<() => void>(() => {
+    operations.closeStack();
+    setIsConfirmCloseDialogOpen(false);
+  });
+
+  // Initialize HyperCard Stacks directory and create default stack
   useEffect(() => {
     const initializeHyperCardDirectory = () => {
       // Check if directory exists
@@ -65,7 +71,12 @@ export function HyperCardAppComponent({
     };
 
     initializeHyperCardDirectory();
-  }, [createFolder, fileStore]);
+
+    // Create a default stack if no stack is open and no initial data
+    if (!currentStack && !initialData) {
+      operations.newStack("Untitled Stack");
+    }
+  }, [createFolder, fileStore, currentStack, initialData, operations]);
 
   // Implement file system operations
   const saveStackOperation = useCallback(async (stack: HyperCardStack, path?: string) => {
@@ -141,16 +152,60 @@ export function HyperCardAppComponent({
         const content = initialData.content;
         if (typeof content === 'string') {
           const stack = JSON.parse(content);
-          operations.newStack(stack.name);
-          // TODO: Set the stack content properly
-          toast.success(`Loaded stack: ${stack.name}`);
+          
+          // If we have a current stack and it's modified, show confirmation dialog
+          if (currentStack && isModified) {
+            setIsConfirmCloseDialogOpen(true);
+            // Store the new stack data to load after confirmation
+            const pendingStack = stack;
+            confirmHandlerRef.current = () => {
+              // Close current stack and load new one
+              operations.closeStack();
+              useStackStore.setState({
+                currentStack: {
+                  ...pendingStack,
+                  path: initialData.path
+                },
+                isModified: false,
+                lastSavedPath: initialData.path
+              });
+              setIsConfirmCloseDialogOpen(false);
+              toast.success(`Loaded stack: ${pendingStack.name}`);
+              // Clear initial data after successful load
+              const clearInitialData = useAppStore.getState().clearInitialData;
+              clearInitialData('hypercard');
+              // Reset the handler back to default
+              confirmHandlerRef.current = () => {
+                operations.closeStack();
+                setIsConfirmCloseDialogOpen(false);
+              };
+            };
+          } else {
+            // No current stack or no unsaved changes, load directly
+            operations.closeStack();
+            useStackStore.setState({
+              currentStack: {
+                ...stack,
+                path: initialData.path
+              },
+              isModified: false,
+              lastSavedPath: initialData.path
+            });
+            toast.success(`Loaded stack: ${stack.name}`);
+            // Clear initial data after successful load
+            const clearInitialData = useAppStore.getState().clearInitialData;
+            clearInitialData('hypercard');
+          }
         }
       } catch (error) {
         console.error("Error loading stack from initial data:", error);
         toast.error("Failed to load stack");
+        // Clear initial data even on error to prevent retrying
+        const clearInitialData = useAppStore.getState().clearInitialData;
+        clearInitialData('hypercard');
       }
     }
-  }, [initialData, operations]);
+  }, [initialData, operations, currentStack, isModified]);
 
   // Handle new stack
   const handleNewStack = async () => {
@@ -200,7 +255,14 @@ export function HyperCardAppComponent({
     try {
       // Construct the full path for the new file
       const savePath = `${HYPERCARD_STACKS_DIR}/${name}.stack`;
-      await saveStackOperation(currentStack, savePath);
+      
+      // Create a new stack object with the updated name
+      const updatedStack = {
+        ...currentStack,
+        name: name
+      };
+      
+      await saveStackOperation(updatedStack, savePath);
       setIsSaveDialogOpen(false);
       toast.success(`Saved stack as: ${name}`);
     } catch (error) {
@@ -225,8 +287,7 @@ export function HyperCardAppComponent({
   };
 
   const handleConfirmCloseStack = () => {
-    operations.closeStack();
-    setIsConfirmCloseDialogOpen(false);
+    confirmHandlerRef.current();
   };
 
   if (!isWindowOpen) return null;

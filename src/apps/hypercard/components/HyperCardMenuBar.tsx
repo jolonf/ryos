@@ -67,9 +67,16 @@ export function HyperCardMenuBar({
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onSaveStack}
+            disabled={!currentStackPath}
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+          >
+            Save Stack
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={onSaveStackAs}
             className="text-md h-6 px-3 active:bg-gray-900 active:text-white"
           >
-            {currentStackPath ? "Save Stack" : "Save Stack As..."}
+            Save Stack As...
           </DropdownMenuItem>
           <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
           <DropdownMenuItem

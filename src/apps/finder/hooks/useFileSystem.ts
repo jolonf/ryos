@@ -17,6 +17,7 @@ const STORES = {
   IMAGES: "images",
   TRASH: "trash",
   CUSTOM_WALLPAPERS: "custom_wallpapers",
+  STACKS: "stacks",
 } as const;
 
 // Export STORE names
@@ -844,14 +845,17 @@ export function useFileSystem(
       let contentAsString: string | undefined = undefined;
 
       try {
-        // Fetch content from IndexedDB (Documents or Images)
+        // Fetch content from IndexedDB (Documents, Images, or Stacks)
         if (
           file.path.startsWith("/Documents/") ||
-          file.path.startsWith("/Images/")
+          file.path.startsWith("/Images/") ||
+          file.path.startsWith("/HyperCard Stacks/")
         ) {
           const storeName = file.path.startsWith("/Documents/")
             ? STORES.DOCUMENTS
-            : STORES.IMAGES;
+            : file.path.startsWith("/Images/")
+            ? STORES.IMAGES
+            : STORES.STACKS;
           const contentData = await dbOperations.get<DocumentContent>(
             storeName,
             file.name
@@ -1043,6 +1047,8 @@ export function useFileSystem(
         ? STORES.DOCUMENTS
         : path.startsWith("/Images/")
         ? STORES.IMAGES
+        : path.startsWith("/HyperCard Stacks/")
+        ? STORES.STACKS
         : null;
       if (storeName) {
         try {
