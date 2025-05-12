@@ -389,8 +389,7 @@ export const useStackStore = create<StackStore>((set, get) => ({
       if (!state.currentStack) throw new Error("No stack is currently open");
 
       set({
-        isEditingBackground: !state.isEditingBackground,
-        isModified: true
+        isEditingBackground: !state.isEditingBackground
       });
 
       return Promise.resolve();

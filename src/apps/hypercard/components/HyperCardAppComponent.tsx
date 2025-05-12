@@ -491,13 +491,16 @@ export function HyperCardAppComponent({
       <WindowFrame
         title={
           currentStack
-            ? `${currentStack.name} - Card ${currentStack.currentCardIndex + 1} of ${currentStack.cards.length}${isModified ? " •" : ""}`
+            ? `${currentStack.name} - ${
+                isEditingBackground
+                  ? "Background"
+                  : `Card ${currentStack.currentCardIndex + 1} of ${currentStack.cards.length}`
+              }${isModified ? " •" : ""}`
             : "Untitled Stack"
         }
-        onClose={onClose}
+        onClose={handleCloseStack}
         isForeground={isForeground}
         appId="hypercard"
-        skipInitialSound={skipInitialSound}
       >
         <div className="flex flex-col h-full w-full min-h-0 bg-[#c0c0c0]">
           {currentStack ? (
