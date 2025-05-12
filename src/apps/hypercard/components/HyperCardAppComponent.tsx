@@ -15,6 +15,7 @@ import { HyperCardStack } from "../types/stack";
 import { useFilesStore } from "@/stores/useFilesStore";
 import { useAppStore } from "@/stores/useAppStore";
 import { CardComponent } from './CardComponent';
+import { ToolsPaletteWindow, ToolId } from "./ToolsPaletteWindow";
 
 const HYPERCARD_STACKS_DIR = "/HyperCard Stacks";
 
@@ -342,6 +343,10 @@ export function HyperCardAppComponent({
     }
   };
 
+  // Add tools palette state
+  const [isToolsPaletteVisible, setIsToolsPaletteVisible] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
+
   if (!isWindowOpen) return null;
 
   return (
@@ -366,6 +371,8 @@ export function HyperCardAppComponent({
         isForeground={isForeground}
         isEditingBackground={isEditingBackground}
         onToggleBackground={() => operations.toggleBackgroundMode()}
+        isToolsPaletteVisible={isToolsPaletteVisible}
+        onToggleToolsPalette={() => setIsToolsPaletteVisible(!isToolsPaletteVisible)}
       />
       <WindowFrame
         title={`${currentStack?.name || "Untitled"} - ${isEditingBackground ? "Background" : `Card ${currentStack ? currentStack.currentCardIndex + 1 : 0} of ${currentStack?.cards.length || 0}`}${isModified ? " •" : ""}`}
@@ -398,6 +405,17 @@ export function HyperCardAppComponent({
           )}
         </div>
       </WindowFrame>
+
+      {/* Add Tools Palette Window */}
+      <ToolsPaletteWindow
+        isVisible={isToolsPaletteVisible}
+        onClose={() => setIsToolsPaletteVisible(false)}
+        selectedTool={selectedTool}
+        onToolSelect={setSelectedTool}
+        isForeground={isForeground}
+        skipInitialSound={skipInitialSound}
+        isWindowOpen={isWindowOpen}
+      />
 
       {/* Dialogs */}
       <HelpDialog

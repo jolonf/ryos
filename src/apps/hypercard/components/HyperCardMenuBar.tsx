@@ -31,6 +31,8 @@ export interface HyperCardMenuBarProps {
   canNavigateCards?: boolean;
   isEditingBackground?: boolean;
   onToggleBackground: () => void;
+  isToolsPaletteVisible: boolean;
+  onToggleToolsPalette: () => void;
 }
 
 export function HyperCardMenuBar({
@@ -51,6 +53,8 @@ export function HyperCardMenuBar({
   canNavigateCards = false,
   isEditingBackground = false,
   onToggleBackground,
+  isToolsPaletteVisible,
+  onToggleToolsPalette,
 }: HyperCardMenuBarProps) {
   return (
     <MenuBar>
@@ -232,6 +236,13 @@ export function HyperCardMenuBar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" sideOffset={1} className="px-0">
+          <DropdownMenuItem
+            onClick={onToggleToolsPalette}
+            className={`text-md h-6 px-3 active:bg-gray-900 active:text-white ${isToolsPaletteVisible ? 'bg-gray-200' : ''}`}
+          >
+            Show Tools Palette
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
           <DropdownMenuItem
             disabled
             className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
