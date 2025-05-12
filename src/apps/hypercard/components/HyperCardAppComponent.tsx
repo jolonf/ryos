@@ -11,7 +11,7 @@ import { useStackStore } from "../stores/useStackStore";
 import { useFileSystem } from "@/apps/finder/hooks/useFileSystem";
 import { useLaunchApp } from "@/hooks/useLaunchApp";
 import { toast } from "sonner";
-import { HyperCardStack } from "../types/stack";
+import { HyperCardStack, HyperCardButton } from "../types/stack";
 import { Card } from "../types/card";
 import { useFilesStore } from "@/stores/useFilesStore";
 import { useAppStore } from "@/stores/useAppStore";
@@ -455,6 +455,39 @@ export function HyperCardAppComponent({
     }
   };
 
+  const handleAddButton = useCallback((button: HyperCardButton, isBackground: boolean) => {
+    if (!currentStack) return;
+
+    const currentCard = currentStack.cards[currentStack.currentCardIndex];
+    if (!currentCard) return;
+
+    // Create a new card object with the updated buttons
+    const updatedCard: Card = {
+      ...currentCard,
+      foreground: isBackground ? currentCard.foreground : {
+        ...currentCard.foreground,
+        buttons: [...currentCard.foreground.buttons, button]
+      },
+      background: isBackground ? {
+        ...currentCard.background,
+        buttons: [...currentCard.background.buttons, button]
+      } : currentCard.background
+    };
+
+    // Update the stack with the new card
+    const updatedStack: HyperCardStack = {
+      ...currentStack,
+      cards: currentStack.cards.map((card, index) => 
+        index === currentStack.currentCardIndex ? updatedCard : card
+      )
+    };
+
+    useStackStore.setState({
+      currentStack: updatedStack,
+      isModified: true
+    });
+  }, [currentStack]);
+
   if (!isWindowOpen) return null;
 
   return (
@@ -528,17 +561,16 @@ export function HyperCardAppComponent({
               </div>
 
               {/* Card Content */}
-              <div className="flex-1 flex items-center justify-center">
-                {currentStack.cards[currentStack.currentCardIndex] && (
-                  <CardComponent
-                    card={currentStack.cards[currentStack.currentCardIndex]}
-                    width={512}
-                    height={342}
-                    isActive={true}
-                    isEditingBackground={isEditingBackground}
-                    selectedTool={selectedTool}
-                  />
-                )}
+              <div className="flex-1 flex flex-col gap-2">
+                <CardComponent
+                  card={currentStack.cards[currentStack.currentCardIndex]}
+                  width={currentStack.metadata.cardSize.width}
+                  height={currentStack.metadata.cardSize.height}
+                  isActive={true}
+                  isEditingBackground={isEditingBackground}
+                  selectedTool={selectedTool}
+                  onAddButton={handleAddButton}
+                />
               </div>
             </div>
           ) : (

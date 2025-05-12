@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Card } from '../types/card';
 import { HyperCardPattern, HyperCardButton, HyperCardField } from '../types/stack';
 import { ToolId } from '../components/ToolsPaletteWindow';
@@ -11,6 +11,13 @@ interface CardComponentProps {
   onCardClick?: () => void;
   isEditingBackground?: boolean;
   selectedTool: ToolId | null;
+  onAddButton?: (button: HyperCardButton, isBackground: boolean) => void;
+}
+
+interface DrawingState {
+  isDrawing: boolean;
+  startPoint: { x: number; y: number } | null;
+  currentPoint: { x: number; y: number } | null;
 }
 
 export const CardComponent: React.FC<CardComponentProps> = ({
@@ -20,11 +27,102 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   isActive = false,
   onCardClick,
   isEditingBackground = false,
-  selectedTool
+  selectedTool,
+  onAddButton
 }) => {
   // Default card size if not specified (matches classic HyperCard)
   const cardWidth = width || 512;
   const cardHeight = height || 342;
+
+  // Drawing state
+  const [drawingState, setDrawingState] = useState<DrawingState>({
+    isDrawing: false,
+    startPoint: null,
+    currentPoint: null
+  });
+
+  // Get the current layer (background or foreground)
+  const currentLayer = isEditingBackground ? card.background : card.foreground;
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (selectedTool !== 'button' || !onAddButton) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setDrawingState({
+      isDrawing: true,
+      startPoint: { x, y },
+      currentPoint: { x, y }
+    });
+  }, [selectedTool, onAddButton]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!drawingState.isDrawing || !drawingState.startPoint) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setDrawingState(prev => ({
+      ...prev,
+      currentPoint: { x, y }
+    }));
+  }, [drawingState.isDrawing, drawingState.startPoint]);
+
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    if (!drawingState.isDrawing || !drawingState.startPoint || !drawingState.currentPoint || !onAddButton) return;
+
+    const startX = Math.min(drawingState.startPoint.x, drawingState.currentPoint.x);
+    const startY = Math.min(drawingState.startPoint.y, drawingState.currentPoint.y);
+    const width = Math.abs(drawingState.currentPoint.x - drawingState.startPoint.x);
+    const height = Math.abs(drawingState.currentPoint.y - drawingState.startPoint.y);
+
+    // Only create button if it has a reasonable size
+    if (width > 10 && height > 10) {
+      const newButton: HyperCardButton = {
+        id: `btn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: `Button ${currentLayer.buttons.length + 1}`,
+        type: 'rectangular',
+        style: 'standard',
+        position: { x: startX, y: startY },
+        size: { width, height },
+        text: '',
+        enabled: true,
+        visible: true
+      };
+
+      onAddButton(newButton, isEditingBackground);
+    }
+
+    setDrawingState({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null
+    });
+  }, [drawingState, onAddButton, isEditingBackground, currentLayer.buttons.length]);
+
+  // Calculate the preview rectangle when drawing
+  const getPreviewStyle = () => {
+    if (!drawingState.isDrawing || !drawingState.startPoint || !drawingState.currentPoint) return null;
+
+    const startX = Math.min(drawingState.startPoint.x, drawingState.currentPoint.x);
+    const startY = Math.min(drawingState.startPoint.y, drawingState.currentPoint.y);
+    const width = Math.abs(drawingState.currentPoint.x - drawingState.startPoint.x);
+    const height = Math.abs(drawingState.currentPoint.y - drawingState.startPoint.y);
+
+    return {
+      position: 'absolute' as const,
+      left: startX,
+      top: startY,
+      width,
+      height,
+      border: '1px dashed #000',
+      backgroundColor: 'rgba(0, 0, 0, 0.1)',
+      pointerEvents: 'none' as const
+    };
+  };
 
   return (
     <div 
@@ -32,10 +130,19 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       style={{ 
         width: cardWidth, 
         height: cardHeight,
-        cursor: onCardClick ? 'pointer' : 'default'
+        cursor: selectedTool === 'button' ? 'crosshair' : (onCardClick ? 'pointer' : 'default')
       }}
       onClick={onCardClick}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     >
+      {/* Drawing Preview */}
+      {drawingState.isDrawing && (
+        <div style={getPreviewStyle() || {}} />
+      )}
+
       {/* Background Layer */}
       <div className="absolute inset-0">
         {/* Background Patterns */}
