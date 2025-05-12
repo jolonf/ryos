@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { HyperCardStack } from "../types/stack";
+import { HyperCardStack, HyperCardButton } from "../types/stack";
 import { Card } from "../types/card";
 
 // Types for what can be selected in the property inspector
@@ -140,6 +140,30 @@ const CardPropertiesPanel: React.FC<{
   );
 };
 
+// Button Properties Panel
+const ButtonPropertiesPanel: React.FC<{
+  button: HyperCardButton;
+  isBackground: boolean;
+  onUpdate: (button: HyperCardButton, isBackground: boolean) => void;
+}> = ({ button, isBackground, onUpdate }) => {
+  return (
+    <div className="space-y-4 p-2">
+      <div className="space-y-2">
+        <Label htmlFor="buttonText">Button Text</Label>
+        <Input
+          id="buttonText"
+          value={button.text || ''}
+          onChange={(e) => onUpdate({
+            ...button,
+            text: e.target.value
+          }, isBackground)}
+          className="h-6 text-sm"
+        />
+      </div>
+    </div>
+  );
+};
+
 // Empty Panel (shown when nothing is selected)
 const EmptyPanel: React.FC = () => {
   return (
@@ -180,11 +204,42 @@ export function PropertyInspectorDialog({
         return <StackPropertiesPanel stack={currentStack} onUpdate={onUpdateStack} />;
       
       case "button":
+        if (!currentCard || !currentStack || !onUpdateCard) return <EmptyPanel />;
+        // Find the button in either foreground or background
+        const layer = isEditingBackground ? currentCard.background : currentCard.foreground;
+        const button = layer.buttons.find(b => b.id === selection.id);
+        if (!button) return <EmptyPanel />;
+        return (
+          <ButtonPropertiesPanel
+            button={button}
+            isBackground={isEditingBackground}
+            onUpdate={(updatedButton, isBackground) => {
+              // Update the button in the card
+              const updatedCard = {
+                ...currentCard,
+                foreground: isBackground ? currentCard.foreground : {
+                  ...currentCard.foreground,
+                  buttons: currentCard.foreground.buttons.map(b => 
+                    b.id === updatedButton.id ? updatedButton : b
+                  )
+                },
+                background: isBackground ? {
+                  ...currentCard.background,
+                  buttons: currentCard.background.buttons.map(b => 
+                    b.id === updatedButton.id ? updatedButton : b
+                  )
+                } : currentCard.background
+              };
+              onUpdateCard(currentCard.id, updatedCard);
+            }}
+          />
+        );
+      
       case "field":
         // These will be implemented later
         return (
           <div className="p-4 text-center text-gray-500">
-            {selection.type === "button" ? "Button" : "Field"} properties
+            Field properties
             <br />
             Coming soon
           </div>
