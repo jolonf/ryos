@@ -12,12 +12,49 @@ import { useFileSystem } from "@/apps/finder/hooks/useFileSystem";
 import { useLaunchApp } from "@/hooks/useLaunchApp";
 import { toast } from "sonner";
 import { HyperCardStack } from "../types/stack";
+import { Card } from "../types/card";
 import { useFilesStore } from "@/stores/useFilesStore";
 import { useAppStore } from "@/stores/useAppStore";
 import { CardComponent } from './CardComponent';
-import { ToolsPaletteWindow, ToolId } from "./ToolsPaletteWindow";
+import { ToolId, TOOLS, Tool } from "./ToolsPaletteWindow";
+import { PropertyInspectorWindow, InspectorSelection } from "./PropertyInspectorWindow";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const HYPERCARD_STACKS_DIR = "/HyperCard Stacks";
+
+interface HyperCardMenuBarProps {
+  onClose: () => void;
+  onShowHelp: () => void;
+  onShowAbout: () => void;
+  onNewStack: () => void;
+  onOpenStack: () => void;
+  onSaveStack: () => void;
+  onSaveStackAs: () => void;
+  onCloseStack: () => void;
+  onNextCard: () => void;
+  onPreviousCard: () => void;
+  onAddCard: () => void;
+  onDeleteCard: () => void;
+  hasUnsavedChanges: boolean;
+  currentStackPath: string | null;
+  canNavigateCards: boolean;
+  isWindowOpen: boolean;
+  isForeground: boolean;
+  onToggleBackground: () => void;
+  isEditingBackground: boolean;
+  isPropertyInspectorVisible: boolean;
+  onTogglePropertyInspector: () => void;
+}
+
+interface CardComponentProps {
+  card: Card;
+  width: number;
+  height: number;
+  isActive: boolean;
+  isEditingBackground: boolean;
+  selectedTool: ToolId | null;
+}
 
 export function HyperCardAppComponent({
   onClose,
@@ -344,8 +381,78 @@ export function HyperCardAppComponent({
   };
 
   // Add tools palette state
-  const [isToolsPaletteVisible, setIsToolsPaletteVisible] = useState(false);
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
+
+  // Add property inspector state
+  const [isPropertyInspectorVisible, setIsPropertyInspectorVisible] = useState(false);
+  const [inspectorSelection, setInspectorSelection] = useState<InspectorSelection | null>(null);
+
+  // Update selection when card changes or background mode changes
+  useEffect(() => {
+    if (currentStack) {
+      if (isEditingBackground) {
+        setInspectorSelection({ type: "background", id: currentStack.background.id });
+      } else if (currentStack.cards[currentStack.currentCardIndex]) {
+        setInspectorSelection({ 
+          type: "card", 
+          id: currentStack.cards[currentStack.currentCardIndex].id 
+        });
+      }
+    } else {
+      setInspectorSelection(null);
+    }
+  }, [currentStack, isEditingBackground]);
+
+  // Handle stack updates
+  const handleStackUpdate = async (updates: Partial<HyperCardStack>) => {
+    if (!currentStack) return;
+    
+    try {
+      // Update the stack in the store
+      useStackStore.setState({
+        currentStack: {
+          ...currentStack,
+          ...updates,
+          metadata: {
+            ...currentStack.metadata,
+            ...(updates.metadata || {}),
+          }
+        },
+        isModified: true
+      });
+    } catch (error) {
+      console.error("Error updating stack:", error);
+      toast.error("Failed to update stack");
+    }
+  };
+
+  // Handle card updates
+  const handleCardUpdate = async (cardId: string, updates: Partial<Card>) => {
+    if (!currentStack) return;
+    
+    try {
+      const cardIndex = currentStack.cards.findIndex(card => card.id === cardId);
+      if (cardIndex === -1) return;
+
+      const updatedCards = [...currentStack.cards];
+      updatedCards[cardIndex] = {
+        ...updatedCards[cardIndex],
+        ...updates
+      };
+
+      // Update the stack in the store
+      useStackStore.setState({
+        currentStack: {
+          ...currentStack,
+          cards: updatedCards
+        },
+        isModified: true
+      });
+    } catch (error) {
+      console.error("Error updating card:", error);
+      toast.error("Failed to update card");
+    }
+  };
 
   if (!isWindowOpen) return null;
 
@@ -355,24 +462,34 @@ export function HyperCardAppComponent({
         onClose={onClose}
         onShowHelp={() => setIsHelpDialogOpen(true)}
         onShowAbout={() => setIsAboutDialogOpen(true)}
-        onNewStack={handleNewStack}
+        onNewStack={() => operations.newStack("Untitled Stack")}
         onOpenStack={handleOpenStack}
         onSaveStack={handleSaveStack}
         onSaveStackAs={handleSaveStackAs}
         onCloseStack={handleCloseStack}
-        onNextCard={handleNextCard}
-        onPreviousCard={handlePreviousCard}
-        onAddCard={handleAddCard}
-        onDeleteCard={handleDeleteCard}
+        onNextCard={() => operations.navigateToNextCard()}
+        onPreviousCard={() => operations.navigateToPreviousCard()}
+        onAddCard={() => {
+          if (currentStack) {
+            const cardNumber = currentStack.cards.length + 1;
+            operations.addCard(`Card ${cardNumber}`);
+          }
+        }}
+        onDeleteCard={() => {
+          if (currentStack && currentStack.cards.length > 1) {
+            const currentCard = currentStack.cards[currentStack.currentCardIndex];
+            operations.deleteCard(currentCard.id);
+          }
+        }}
         hasUnsavedChanges={isModified}
         currentStackPath={currentFileExists ? currentStack?.path || null : null}
         canNavigateCards={!!currentStack && currentStack.cards.length > 1}
         isWindowOpen={isWindowOpen}
         isForeground={isForeground}
+        onToggleBackground={operations.toggleBackgroundMode}
         isEditingBackground={isEditingBackground}
-        onToggleBackground={() => operations.toggleBackgroundMode()}
-        isToolsPaletteVisible={isToolsPaletteVisible}
-        onToggleToolsPalette={() => setIsToolsPaletteVisible(!isToolsPaletteVisible)}
+        isPropertyInspectorVisible={isPropertyInspectorVisible}
+        onTogglePropertyInspector={() => setIsPropertyInspectorVisible(!isPropertyInspectorVisible)}
       />
       <WindowFrame
         title={`${currentStack?.name || "Untitled"} - ${isEditingBackground ? "Background" : `Card ${currentStack ? currentStack.currentCardIndex + 1 : 0} of ${currentStack?.cards.length || 0}`}${isModified ? " •" : ""}`}
@@ -383,16 +500,42 @@ export function HyperCardAppComponent({
       >
         <div className="flex flex-col h-full w-full min-h-0 bg-[#c0c0c0]">
           {currentStack ? (
-            <div className="flex-1 flex items-center justify-center">
-              {currentStack.cards[currentStack.currentCardIndex] && (
-                <CardComponent
-                  card={currentStack.cards[currentStack.currentCardIndex]}
-                  width={512}
-                  height={342}
-                  isActive={true}
-                  isEditingBackground={isEditingBackground}
-                />
-              )}
+            <div className="flex-1 flex gap-2 p-2">
+              {/* Tools Palette */}
+              <div className="flex flex-col gap-2 w-[84px] shrink-0">
+                <div className="bg-white border border-black w-full shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
+                  <div className="grid grid-cols-2 gap-0 p-1">
+                    {TOOLS.map((tool: Tool) => (
+                      <Button
+                        key={tool.id}
+                        variant="ghost"
+                        className={cn(
+                          "h-10 w-10 p-0 flex items-center justify-center bg-white border border-black hover:bg-gray-100 active:bg-gray-200",
+                          selectedTool === tool.id && "bg-gray-200"
+                        )}
+                        onClick={() => setSelectedTool(tool.id)}
+                        title={tool.name}
+                      >
+                        <span className="text-lg">{tool.icon}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Content */}
+              <div className="flex-1 flex items-center justify-center">
+                {currentStack.cards[currentStack.currentCardIndex] && (
+                  <CardComponent
+                    card={currentStack.cards[currentStack.currentCardIndex]}
+                    width={512}
+                    height={342}
+                    isActive={true}
+                    isEditingBackground={isEditingBackground}
+                    selectedTool={selectedTool}
+                  />
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center bg-white">
@@ -406,12 +549,16 @@ export function HyperCardAppComponent({
         </div>
       </WindowFrame>
 
-      {/* Add Tools Palette Window */}
-      <ToolsPaletteWindow
-        isVisible={isToolsPaletteVisible}
-        onClose={() => setIsToolsPaletteVisible(false)}
-        selectedTool={selectedTool}
-        onToolSelect={setSelectedTool}
+      {/* Property Inspector Window */}
+      <PropertyInspectorWindow
+        isVisible={isPropertyInspectorVisible}
+        onClose={() => setIsPropertyInspectorVisible(false)}
+        selection={inspectorSelection}
+        currentStack={currentStack}
+        currentCard={currentStack?.cards[currentStack.currentCardIndex] || null}
+        isEditingBackground={isEditingBackground}
+        onUpdateStack={handleStackUpdate}
+        onUpdateCard={handleCardUpdate}
         isForeground={isForeground}
         skipInitialSound={skipInitialSound}
         isWindowOpen={isWindowOpen}

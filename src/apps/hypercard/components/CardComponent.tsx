@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from '../types/card';
 import { HyperCardPattern, HyperCardButton, HyperCardField } from '../types/stack';
+import { ToolId } from '../components/ToolsPaletteWindow';
 
 interface CardComponentProps {
   card: Card;
@@ -9,6 +10,7 @@ interface CardComponentProps {
   isActive?: boolean;
   onCardClick?: () => void;
   isEditingBackground?: boolean;
+  selectedTool: ToolId | null;
 }
 
 export const CardComponent: React.FC<CardComponentProps> = ({
@@ -17,7 +19,8 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   height,
   isActive = false,
   onCardClick,
-  isEditingBackground = false
+  isEditingBackground = false,
+  selectedTool
 }) => {
   // Default card size if not specified (matches classic HyperCard)
   const cardWidth = width || 512;

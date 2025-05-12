@@ -5,8 +5,8 @@ import { useWindowManager } from "@/hooks/useWindowManager";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Tool categories and their tools
-const TOOLS = [
+// Export the TOOLS constant
+export const TOOLS = [
   // Basic Tools
   { id: "browse", name: "Browse", icon: "👆" },
   { id: "button", name: "Button", icon: "🔘" },
@@ -27,56 +27,8 @@ const TOOLS = [
 
 export type ToolId = typeof TOOLS[number]["id"];
 
-interface ToolsPaletteWindowProps extends Omit<AppProps, "appId"> {
-  selectedTool: ToolId | null;
-  onToolSelect: (tool: ToolId) => void;
-  isVisible: boolean;
-  onClose: () => void;
-}
+// Export the tool type for type safety
+export type Tool = typeof TOOLS[number];
 
-export function ToolsPaletteWindow({
-  selectedTool,
-  onToolSelect,
-  isVisible,
-  onClose,
-  isForeground = true,
-  skipInitialSound = false,
-}: ToolsPaletteWindowProps) {
-  // Use window manager hook to handle window state
-  useWindowManager({ appId: "hypercard" });
-
-  if (!isVisible) return null;
-
-  return (
-    <WindowFrame
-      title="Tools"
-      onClose={onClose}
-      isForeground={isForeground}
-      appId="hypercard"
-      skipInitialSound={skipInitialSound}
-      windowConstraints={{
-        minWidth: 144,
-        minHeight: 192,
-        maxWidth: 144,
-        maxHeight: 192,
-      }}
-    >
-      <div className="grid grid-cols-3 gap-1 p-1 h-full w-full bg-[#c0c0c0]">
-        {TOOLS.map((tool) => (
-          <Button
-            key={tool.id}
-            variant="ghost"
-            className={cn(
-              "h-8 w-8 p-0 flex items-center justify-center bg-white border border-black hover:bg-gray-100 active:bg-gray-200",
-              selectedTool === tool.id && "bg-gray-200"
-            )}
-            onClick={() => onToolSelect(tool.id)}
-            title={tool.name}
-          >
-            {tool.icon}
-          </Button>
-        ))}
-      </div>
-    </WindowFrame>
-  );
-} 
+// Remove the window component since we're integrating it into the main window
+export { TOOLS as default }; 

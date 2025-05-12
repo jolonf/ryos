@@ -26,13 +26,13 @@ export interface HyperCardMenuBarProps {
   onPreviousCard: () => void;
   onAddCard: () => void;
   onDeleteCard: () => void;
-  hasUnsavedChanges?: boolean;
-  currentStackPath?: string | null;
-  canNavigateCards?: boolean;
-  isEditingBackground?: boolean;
+  hasUnsavedChanges: boolean;
+  currentStackPath: string | null;
+  canNavigateCards: boolean;
+  isEditingBackground: boolean;
   onToggleBackground: () => void;
-  isToolsPaletteVisible: boolean;
-  onToggleToolsPalette: () => void;
+  isPropertyInspectorVisible: boolean;
+  onTogglePropertyInspector: () => void;
 }
 
 export function HyperCardMenuBar({
@@ -50,11 +50,11 @@ export function HyperCardMenuBar({
   onDeleteCard,
   hasUnsavedChanges,
   currentStackPath,
-  canNavigateCards = false,
-  isEditingBackground = false,
+  canNavigateCards,
+  isEditingBackground,
   onToggleBackground,
-  isToolsPaletteVisible,
-  onToggleToolsPalette,
+  isPropertyInspectorVisible,
+  onTogglePropertyInspector,
 }: HyperCardMenuBarProps) {
   return (
     <MenuBar>
@@ -237,10 +237,16 @@ export function HyperCardMenuBar({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" sideOffset={1} className="px-0">
           <DropdownMenuItem
-            onClick={onToggleToolsPalette}
-            className={`text-md h-6 px-3 active:bg-gray-900 active:text-white ${isToolsPaletteVisible ? 'bg-gray-200' : ''}`}
+            disabled
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
           >
             Show Tools Palette
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={onTogglePropertyInspector}
+            className={`text-md h-6 px-3 active:bg-gray-900 active:text-white ${isPropertyInspectorVisible ? 'bg-gray-200' : ''}`}
+          >
+            Show Property Inspector
           </DropdownMenuItem>
           <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
           <DropdownMenuItem
