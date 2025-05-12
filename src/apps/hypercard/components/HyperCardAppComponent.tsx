@@ -226,7 +226,13 @@ export function HyperCardAppComponent({
       setIsConfirmCloseDialogOpen(true);
       return;
     }
-    setIsNewStackDialogOpen(true);
+    try {
+      await operations.newStack("Untitled Stack");
+      toast.success("Created new stack: Untitled Stack");
+    } catch (error) {
+      console.error("Error creating new stack:", error);
+      toast.error("Failed to create new stack");
+    }
   };
 
   const handleNewStackSubmit = async (name: string) => {
