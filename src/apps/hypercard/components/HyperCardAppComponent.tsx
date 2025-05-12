@@ -110,7 +110,7 @@ export function HyperCardAppComponent({
         name: fileName,
         path: savePath,
         content: JSON.stringify(stack),
-        type: "application/json"
+        type: "stack"
       });
 
       // Update store state after successful save
