@@ -371,7 +371,7 @@ export function HyperCardAppComponent({
         appId="hypercard"
         skipInitialSound={skipInitialSound}
       >
-        <div className="flex flex-col h-full w-full min-h-0 p-2 bg-[#c0c0c0]">
+        <div className="flex flex-col h-full w-full min-h-0 bg-[#c0c0c0]">
           {currentStack ? (
             <div className="flex-1 flex items-center justify-center">
               {currentStack.cards[currentStack.currentCardIndex] && (

@@ -144,7 +144,7 @@ export const appRegistry = {
     ...HyperCardApp,
     windowConfig: {
       defaultSize: { width: 800, height: 600 },
-      minSize: { width: 640, height: 480 },
+      minSize: { width: 532, height: 392 },
     } as WindowConstraints,
   },
 } as const;
