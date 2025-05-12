@@ -237,12 +237,6 @@ export function HyperCardMenuBar({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" sideOffset={1} className="px-0">
           <DropdownMenuItem
-            disabled
-            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
-          >
-            Show Tools Palette
-          </DropdownMenuItem>
-          <DropdownMenuItem
             onClick={onTogglePropertyInspector}
             className={`text-md h-6 px-3 active:bg-gray-900 active:text-white ${isPropertyInspectorVisible ? 'bg-gray-200' : ''}`}
           >
