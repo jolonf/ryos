@@ -29,6 +29,8 @@ export interface HyperCardMenuBarProps {
   hasUnsavedChanges?: boolean;
   currentStackPath?: string | null;
   canNavigateCards?: boolean;
+  isEditingBackground?: boolean;
+  onToggleBackground: () => void;
 }
 
 export function HyperCardMenuBar({
@@ -47,6 +49,8 @@ export function HyperCardMenuBar({
   hasUnsavedChanges,
   currentStackPath,
   canNavigateCards = false,
+  isEditingBackground = false,
+  onToggleBackground,
 }: HyperCardMenuBarProps) {
   return (
     <MenuBar>
@@ -201,8 +205,9 @@ export function HyperCardMenuBar({
           </DropdownMenuItem>
           <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
           <DropdownMenuItem
-            disabled
-            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+            onClick={onToggleBackground}
+            disabled={!currentStackPath}
+            className={`text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50 ${isEditingBackground ? 'bg-gray-200' : ''}`}
           >
             Background
           </DropdownMenuItem>

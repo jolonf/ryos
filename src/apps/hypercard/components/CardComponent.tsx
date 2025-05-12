@@ -8,6 +8,7 @@ interface CardComponentProps {
   height: number;
   isActive?: boolean;
   onCardClick?: () => void;
+  isEditingBackground?: boolean;
 }
 
 export const CardComponent: React.FC<CardComponentProps> = ({
@@ -15,7 +16,8 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   width,
   height,
   isActive = false,
-  onCardClick
+  onCardClick,
+  isEditingBackground = false
 }) => {
   // Default card size if not specified (matches classic HyperCard)
   const cardWidth = width || 512;
@@ -23,7 +25,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
 
   return (
     <div 
-      className={`relative bg-white border-2 ${isActive ? 'border-blue-500' : 'border-gray-300'} shadow-md`}
+      className={`relative bg-white border-2 ${isActive ? 'border-blue-500' : 'border-gray-300'} shadow-md ${isEditingBackground ? 'bg-[url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h10v10H0zM10 10h10v10H10z\' fill=\'%23f0f0f0\' fill-opacity=\'0.4\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")]' : ''}`}
       style={{ 
         width: cardWidth, 
         height: cardHeight,

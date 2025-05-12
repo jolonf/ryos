@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { 
-  StackStore, 
   HyperCardStack, 
   StackState, 
   StackOperations,
@@ -33,6 +32,12 @@ const createDefaultStack = (name: string): HyperCardStack => {
   };
 };
 
+export interface StackStore extends StackState {
+  operations: StackOperations & {
+    toggleBackgroundMode: () => Promise<void>;
+  };
+}
+
 export const useStackStore = create<StackStore>((set, get) => ({
   // Initial state
   currentStack: null,
@@ -40,6 +45,7 @@ export const useStackStore = create<StackStore>((set, get) => ({
   isModified: false,
   lastSavedPath: null,
   metadata: undefined,
+  isEditingBackground: false,
 
   // Operations that don't require file system access
   operations: {
@@ -372,6 +378,18 @@ export const useStackStore = create<StackStore>((set, get) => ({
             modifiedAt: Date.now()
           }
         },
+        isModified: true
+      });
+
+      return Promise.resolve();
+    },
+
+    toggleBackgroundMode: () => {
+      const state = get();
+      if (!state.currentStack) throw new Error("No stack is currently open");
+
+      set({
+        isEditingBackground: !state.isEditingBackground,
         isModified: true
       });
 

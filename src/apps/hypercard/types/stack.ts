@@ -88,6 +88,7 @@ export interface StackState {
   isModified: boolean;
   lastSavedPath: string | null;
   metadata?: StackMetadata;  // Current stack metadata
+  isEditingBackground: boolean;  // Whether we're in background editing mode
 }
 
 export interface StackOperations {

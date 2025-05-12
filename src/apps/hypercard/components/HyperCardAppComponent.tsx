@@ -43,7 +43,8 @@ export function HyperCardAppComponent({
     currentStack, 
     isModified, 
     operations,
-    lastSavedPath 
+    lastSavedPath,
+    isEditingBackground 
   } = useStackStore();
 
   // Get file system operations
@@ -363,9 +364,11 @@ export function HyperCardAppComponent({
         canNavigateCards={!!currentStack && currentStack.cards.length > 1}
         isWindowOpen={isWindowOpen}
         isForeground={isForeground}
+        isEditingBackground={isEditingBackground}
+        onToggleBackground={() => operations.toggleBackgroundMode()}
       />
       <WindowFrame
-        title={`${currentStack?.name || "Untitled"} - Card ${currentStack ? currentStack.currentCardIndex + 1 : 0} of ${currentStack?.cards.length || 0}${isModified ? " •" : ""}`}
+        title={`${currentStack?.name || "Untitled"} - ${isEditingBackground ? "Background" : `Card ${currentStack ? currentStack.currentCardIndex + 1 : 0} of ${currentStack?.cards.length || 0}`}${isModified ? " •" : ""}`}
         onClose={onClose}
         isForeground={isForeground}
         appId="hypercard"
@@ -380,6 +383,7 @@ export function HyperCardAppComponent({
                   width={512}
                   height={342}
                   isActive={true}
+                  isEditingBackground={isEditingBackground}
                 />
               )}
             </div>
