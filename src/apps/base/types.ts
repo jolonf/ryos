@@ -29,7 +29,8 @@ export interface BaseApp {
     | "photo-booth"
     | "synth"
     | "ipod"
-    | "terminal";
+    | "terminal"
+    | "hypercard";
   name: string;
   icon: string | { type: "image"; src: string };
   description: string;
