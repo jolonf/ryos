@@ -1,8 +1,9 @@
 import React from 'react';
-import { HyperCardCard } from '../types/stack';
+import { Card } from '../types/card';
+import { HyperCardPattern, HyperCardButton, HyperCardField } from '../types/stack';
 
 interface CardComponentProps {
-  card: HyperCardCard;
+  card: Card;
   width: number;
   height: number;
   isActive?: boolean;
@@ -33,7 +34,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       {/* Background Layer */}
       <div className="absolute inset-0">
         {/* Background Patterns */}
-        {card.background.patterns.map(pattern => (
+        {(card.background.patterns as HyperCardPattern[]).map(pattern => (
           <div
             key={pattern.id}
             className="absolute"
@@ -49,7 +50,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         ))}
         
         {/* Background Buttons */}
-        {card.background.buttons.map(button => (
+        {(card.background.buttons as HyperCardButton[]).map(button => (
           <div
             key={button.id}
             className={`absolute ${button.visible ? '' : 'hidden'}`}
@@ -68,7 +69,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         ))}
         
         {/* Background Fields */}
-        {card.background.fields.map(field => (
+        {(card.background.fields as HyperCardField[]).map(field => (
           <div
             key={field.id}
             className={`absolute ${field.visible ? '' : 'hidden'}`}
@@ -90,7 +91,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       {/* Foreground Layer */}
       <div className="absolute inset-0">
         {/* Foreground Patterns */}
-        {card.foreground.patterns.map(pattern => (
+        {(card.foreground.patterns as HyperCardPattern[]).map(pattern => (
           <div
             key={pattern.id}
             className="absolute"
@@ -106,7 +107,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         ))}
         
         {/* Foreground Buttons */}
-        {card.foreground.buttons.map(button => (
+        {(card.foreground.buttons as HyperCardButton[]).map(button => (
           <div
             key={button.id}
             className={`absolute ${button.visible ? '' : 'hidden'}`}
@@ -125,7 +126,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         ))}
         
         {/* Foreground Fields */}
-        {card.foreground.fields.map(field => (
+        {(card.foreground.fields as HyperCardField[]).map(field => (
           <div
             key={field.id}
             className={`absolute ${field.visible ? '' : 'hidden'}`}

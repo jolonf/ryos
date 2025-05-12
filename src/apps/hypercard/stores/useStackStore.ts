@@ -4,9 +4,11 @@ import {
   HyperCardStack, 
   StackState, 
   StackOperations,
-  HyperCardCard,
-  HyperCardBackground
+  HyperCardBackground,
+  StackMetadata,
+  createDefaultStackMetadata
 } from "../types/stack";
+import { Card, createEmptyCard, createBackgroundCard } from "../types/card";
 
 const MAX_RECENT_STACKS = 10;
 let idCounter = 0;
@@ -16,48 +18,20 @@ const generateId = (prefix: string) => {
   return `${prefix}_${Date.now()}_${idCounter}`;
 };
 
-const createDefaultCard = (name: string, background: HyperCardBackground): HyperCardCard => ({
-  id: generateId("card"),
-  name,
-  background,
-  foreground: {
-    patterns: [],
-    buttons: [],
-    fields: []
-  }
-});
-
-const createDefaultStack = (name: string): HyperCardStack => ({
-  id: generateId("stack"),
-  name,
-  cards: [{
-    id: generateId("card"),
-    name: "Card 1",
-    background: {
-      id: generateId("bg"),
-      name: "Background 1",
-      patterns: [],
-      buttons: [],
-      fields: []
-    },
-    foreground: {
-      patterns: [],
-      buttons: [],
-      fields: []
-    }
-  }],
-  currentCardIndex: 0,
-  background: {
-    id: generateId("bg"),
-    name: "Background 1",
-    patterns: [],
-    buttons: [],
-    fields: []
-  },
-  createdAt: Date.now(),
-  modifiedAt: Date.now(),
-  version: "1.0.0"
-});
+const createDefaultStack = (name: string): HyperCardStack => {
+  const metadata = createDefaultStackMetadata(name);
+  const background = createBackgroundCard('Default Background').background;
+  
+  return {
+    id: `stack_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name,
+    cards: [createEmptyCard('Home', background)],
+    currentCardIndex: 0,
+    background,
+    metadata,
+    script: ''
+  };
+};
 
 export const useStackStore = create<StackStore>((set, get) => ({
   // Initial state
@@ -65,6 +39,7 @@ export const useStackStore = create<StackStore>((set, get) => ({
   recentStacks: [],
   isModified: false,
   lastSavedPath: null,
+  metadata: undefined,
 
   // Operations that don't require file system access
   operations: {
@@ -73,7 +48,8 @@ export const useStackStore = create<StackStore>((set, get) => ({
       set({
         currentStack: stack,
         isModified: true,
-        lastSavedPath: null
+        lastSavedPath: null,
+        metadata: stack.metadata
       });
       return stack;
     },
@@ -82,7 +58,8 @@ export const useStackStore = create<StackStore>((set, get) => ({
       set({
         currentStack: null,
         isModified: false,
-        lastSavedPath: null
+        lastSavedPath: null,
+        metadata: undefined
       });
     },
 
@@ -112,7 +89,7 @@ export const useStackStore = create<StackStore>((set, get) => ({
       const state = get();
       if (!state.currentStack) throw new Error("No stack is currently open");
 
-      const newCard = createDefaultCard(name, state.currentStack.background);
+      const newCard = createEmptyCard(name, state.currentStack.background);
       const cards = [...state.currentStack.cards];
       
       // Insert at position or append to end
@@ -126,7 +103,10 @@ export const useStackStore = create<StackStore>((set, get) => ({
         currentStack: {
           ...state.currentStack,
           cards,
-          modifiedAt: Date.now()
+          metadata: {
+            ...state.currentStack.metadata,
+            modifiedAt: Date.now()
+          }
         },
         isModified: true
       });
@@ -155,7 +135,10 @@ export const useStackStore = create<StackStore>((set, get) => ({
           ...state.currentStack,
           cards,
           currentCardIndex,
-          modifiedAt: Date.now()
+          metadata: {
+            ...state.currentStack.metadata,
+            modifiedAt: Date.now()
+          }
         },
         isModified: true
       });
@@ -189,7 +172,10 @@ export const useStackStore = create<StackStore>((set, get) => ({
           ...state.currentStack,
           cards,
           currentCardIndex,
-          modifiedAt: Date.now()
+          metadata: {
+            ...state.currentStack.metadata,
+            modifiedAt: Date.now()
+          }
         },
         isModified: true
       });
@@ -197,13 +183,20 @@ export const useStackStore = create<StackStore>((set, get) => ({
       return Promise.resolve();
     },
 
-    updateCard: async (cardId: string, updates: Partial<HyperCardCard>) => {
+    updateCard: async (cardId: string, updates: Partial<Card>) => {
       const state = get();
       if (!state.currentStack) throw new Error("No stack is currently open");
 
       const cards = state.currentStack.cards.map(card => 
         card.id === cardId 
-          ? { ...card, ...updates, modifiedAt: Date.now() }
+          ? { 
+              ...card, 
+              ...updates,
+              metadata: {
+                ...card.metadata,
+                modifiedAt: Date.now()
+              }
+            }
           : card
       );
 
@@ -211,7 +204,10 @@ export const useStackStore = create<StackStore>((set, get) => ({
         currentStack: {
           ...state.currentStack,
           cards,
-          modifiedAt: Date.now()
+          metadata: {
+            ...state.currentStack.metadata,
+            modifiedAt: Date.now()
+          }
         },
         isModified: true
       });
@@ -265,5 +261,121 @@ export const useStackStore = create<StackStore>((set, get) => ({
 
       return Promise.resolve();
     },
+
+    // Metadata operations
+    updateStackMetadata: async (metadata: Partial<StackMetadata>) => {
+      const state = get();
+      if (!state.currentStack) throw new Error("No stack is currently open");
+
+      const updatedMetadata = {
+        ...state.currentStack.metadata,
+        ...metadata,
+        modifiedAt: Date.now()
+      };
+
+      set({
+        currentStack: {
+          ...state.currentStack,
+          metadata: updatedMetadata
+        },
+        metadata: updatedMetadata,
+        isModified: true
+      });
+
+      return Promise.resolve();
+    },
+
+    getStackMetadata: () => {
+      const state = get();
+      return state.currentStack?.metadata || null;
+    },
+
+    // Background operations
+    createBackground: async (name: string) => {
+      const state = get();
+      if (!state.currentStack) throw new Error("No stack is currently open");
+
+      const background: HyperCardBackground = {
+        id: generateId("bg"),
+        name,
+        patterns: [],
+        buttons: [],
+        fields: []
+      };
+
+      set({
+        currentStack: {
+          ...state.currentStack,
+          background,
+          metadata: {
+            ...state.currentStack.metadata,
+            modifiedAt: Date.now()
+          }
+        },
+        isModified: true
+      });
+
+      return Promise.resolve(background);
+    },
+
+    updateBackground: async (backgroundId: string, updates: Partial<HyperCardBackground>) => {
+      const state = get();
+      if (!state.currentStack) throw new Error("No stack is currently open");
+
+      if (state.currentStack.background.id !== backgroundId) {
+        throw new Error("Background not found");
+      }
+
+      const updatedBackground = {
+        ...state.currentStack.background,
+        ...updates
+      };
+
+      set({
+        currentStack: {
+          ...state.currentStack,
+          background: updatedBackground,
+          metadata: {
+            ...state.currentStack.metadata,
+            modifiedAt: Date.now()
+          }
+        },
+        isModified: true
+      });
+
+      return Promise.resolve();
+    },
+
+    deleteBackground: async (backgroundId: string) => {
+      const state = get();
+      if (!state.currentStack) throw new Error("No stack is currently open");
+
+      if (state.currentStack.background.id !== backgroundId) {
+        throw new Error("Background not found");
+      }
+
+      // Create a new default background
+      const newBackground: HyperCardBackground = {
+        id: generateId("bg"),
+        name: "New Background",
+        patterns: [],
+        buttons: [],
+        fields: []
+      };
+
+      set({
+        currentStack: {
+          ...state.currentStack,
+          background: newBackground,
+          metadata: {
+            ...state.currentStack.metadata,
+            modifiedAt: Date.now()
+          }
+        },
+        isModified: true
+      });
+
+      return Promise.resolve();
+    }
   }
 })); 

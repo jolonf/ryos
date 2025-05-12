@@ -1,23 +1,35 @@
 import { AppId } from "@/config/appIds";
+import { Card, CARD_WIDTH, CARD_HEIGHT } from './card';
+
+// Stack metadata
+export interface StackMetadata {
+  id: string;
+  name: string;
+  description?: string;
+  author?: string;
+  createdAt: number;
+  modifiedAt: number;
+  version: string;
+  cardSize: {
+    width: number;
+    height: number;
+  };
+  defaultTransition?: {
+    type: string;
+    duration: number;
+  };
+  tags?: string[];
+}
 
 export interface HyperCardStack {
   id: string;
   name: string;
   path?: string;  // Path in the file system
-  cards: HyperCardCard[];
+  cards: Card[];
   currentCardIndex: number;
   background: HyperCardBackground;
-  createdAt: number;
-  modifiedAt: number;
-  version: string;
-}
-
-export interface HyperCardCard {
-  id: string;
-  name: string;
-  background: HyperCardBackground;
-  foreground: HyperCardLayer;
-  script?: string;
+  metadata: StackMetadata;
+  script?: string;  // Stack-level script
 }
 
 export interface HyperCardBackground {
@@ -26,7 +38,6 @@ export interface HyperCardBackground {
   patterns: HyperCardPattern[];
   buttons: HyperCardButton[];
   fields: HyperCardField[];
-  script?: string;
 }
 
 export interface HyperCardLayer {
@@ -76,6 +87,7 @@ export interface StackState {
   recentStacks: string[];  // Array of stack paths
   isModified: boolean;
   lastSavedPath: string | null;
+  metadata?: StackMetadata;  // Current stack metadata
 }
 
 export interface StackOperations {
@@ -87,16 +99,71 @@ export interface StackOperations {
   addToRecentStacks: (path: string) => void;
   
   // Card Management Operations
-  addCard: (name: string, position?: number) => Promise<HyperCardCard>;
+  addCard: (name: string, position?: number) => Promise<Card>;
   deleteCard: (cardId: string) => Promise<void>;
   moveCard: (cardId: string, newPosition: number) => Promise<void>;
-  updateCard: (cardId: string, updates: Partial<HyperCardCard>) => Promise<void>;
+  updateCard: (cardId: string, updates: Partial<Card>) => Promise<void>;
   navigateToCard: (cardId: string) => Promise<void>;
   navigateToNextCard: () => Promise<void>;
   navigateToPreviousCard: () => Promise<void>;
+
+  // Metadata operations
+  updateStackMetadata: (metadata: Partial<StackMetadata>) => Promise<void>;
+  getStackMetadata: () => StackMetadata | null;
+  
+  // Background operations
+  createBackground: (name: string) => Promise<HyperCardBackground>;
+  updateBackground: (backgroundId: string, updates: Partial<HyperCardBackground>) => Promise<void>;
+  deleteBackground: (backgroundId: string) => Promise<void>;
 }
 
 // Store types
 export interface StackStore extends StackState {
   operations: StackOperations;
-} 
+}
+
+// Add utility functions
+export const createDefaultStackMetadata = (name: string): StackMetadata => ({
+  id: `stack_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  name,
+  createdAt: Date.now(),
+  modifiedAt: Date.now(),
+  version: "1.0.0",
+  cardSize: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT
+  }
+});
+
+export const validateStack = (stack: HyperCardStack): string[] => {
+  const errors: string[] = [];
+
+  if (!stack.id) errors.push('Stack must have an ID');
+  if (!stack.name) errors.push('Stack must have a name');
+  if (!stack.cards || !Array.isArray(stack.cards)) errors.push('Stack must have cards array');
+  if (typeof stack.currentCardIndex !== 'number') errors.push('Stack must have a current card index');
+  if (!stack.background) errors.push('Stack must have a background');
+  if (!stack.metadata) errors.push('Stack must have metadata');
+
+  // Validate metadata
+  if (!stack.metadata.id) errors.push('Stack metadata must have an ID');
+  if (!stack.metadata.name) errors.push('Stack metadata must have a name');
+  if (!stack.metadata.createdAt) errors.push('Stack metadata must have a creation date');
+  if (!stack.metadata.modifiedAt) errors.push('Stack metadata must have a modification date');
+  if (!stack.metadata.version) errors.push('Stack metadata must have a version');
+  if (!stack.metadata.cardSize) errors.push('Stack metadata must have card size');
+
+  // Validate cards
+  if (stack.cards.length === 0) errors.push('Stack must have at least one card');
+  stack.cards.forEach((card, index) => {
+    const cardErrors = validateCard(card);
+    if (cardErrors.length > 0) {
+      errors.push(`Card ${index + 1} (${card.name}): ${cardErrors.join(', ')}`);
+    }
+  });
+
+  return errors;
+};
+
+// Import validateCard from card.ts
+import { validateCard } from './card'; 
