@@ -488,6 +488,26 @@ export function HyperCardAppComponent({
     });
   }, [currentStack]);
 
+  // Add button selection state
+  const [selectedButtonId, setSelectedButtonId] = useState<string | null>(null);
+
+  // Handle button selection
+  const handleSelectButton = useCallback((button: HyperCardButton | null, isBackground: boolean) => {
+    setSelectedButtonId(button?.id || null);
+    
+    // Update inspector selection
+    if (button) {
+      setInspectorSelection({ type: "button", id: button.id });
+    } else if (isEditingBackground) {
+      setInspectorSelection({ type: "background", id: currentStack?.background.id || "" });
+    } else if (currentStack?.cards[currentStack.currentCardIndex]) {
+      setInspectorSelection({ 
+        type: "card", 
+        id: currentStack.cards[currentStack.currentCardIndex].id 
+      });
+    }
+  }, [currentStack, isEditingBackground]);
+
   if (!isWindowOpen) return null;
 
   return (
@@ -570,6 +590,8 @@ export function HyperCardAppComponent({
                   isEditingBackground={isEditingBackground}
                   selectedTool={selectedTool}
                   onAddButton={handleAddButton}
+                  onSelectButton={handleSelectButton}
+                  selectedButtonId={selectedButtonId}
                 />
               </div>
             </div>
