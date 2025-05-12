@@ -33,6 +33,7 @@ export interface HyperCardMenuBarProps {
   onToggleBackground: () => void;
   isPropertyInspectorVisible: boolean;
   onTogglePropertyInspector: () => void;
+  hasCurrentStack: boolean;
 }
 
 export function HyperCardMenuBar({
@@ -55,6 +56,7 @@ export function HyperCardMenuBar({
   onToggleBackground,
   isPropertyInspectorVisible,
   onTogglePropertyInspector,
+  hasCurrentStack,
 }: HyperCardMenuBarProps) {
   return (
     <MenuBar>
@@ -195,14 +197,14 @@ export function HyperCardMenuBar({
           <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
           <DropdownMenuItem
             onClick={onAddCard}
-            disabled={!currentStackPath}
+            disabled={!hasCurrentStack}
             className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
           >
             New Card
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={onDeleteCard}
-            disabled={!currentStackPath || !canNavigateCards}
+            disabled={!hasCurrentStack || !canNavigateCards}
             className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
           >
             Delete Card
@@ -210,7 +212,7 @@ export function HyperCardMenuBar({
           <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
           <DropdownMenuItem
             onClick={onToggleBackground}
-            disabled={!currentStackPath}
+            disabled={!hasCurrentStack}
             className={`text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50 ${isEditingBackground ? 'bg-gray-200' : ''}`}
           >
             Background

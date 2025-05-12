@@ -45,6 +45,7 @@ interface HyperCardMenuBarProps {
   isEditingBackground: boolean;
   isPropertyInspectorVisible: boolean;
   onTogglePropertyInspector: () => void;
+  hasCurrentStack: boolean;
 }
 
 interface CardComponentProps {
@@ -485,11 +486,12 @@ export function HyperCardAppComponent({
         isEditingBackground={isEditingBackground}
         isPropertyInspectorVisible={isPropertyInspectorVisible}
         onTogglePropertyInspector={() => setIsPropertyInspectorVisible(!isPropertyInspectorVisible)}
+        hasCurrentStack={!!currentStack}
       />
       <WindowFrame
         title={
           currentStack
-            ? `${currentStack.name}${isModified ? " •" : ""}`
+            ? `${currentStack.name} - Card ${currentStack.currentCardIndex + 1} of ${currentStack.cards.length}${isModified ? " •" : ""}`
             : "Untitled Stack"
         }
         onClose={onClose}
