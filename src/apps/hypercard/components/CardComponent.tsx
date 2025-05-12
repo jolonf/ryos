@@ -62,24 +62,29 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   // Get the current layer (background or foreground)
   const currentLayer = isEditingBackground ? card.background : card.foreground;
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // If we're drawing a button, handle that first
-    if (selectedTool === 'button' && onAddButton) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      setDrawingState({
-        isDrawing: true,
-        startPoint: { x, y },
-        currentPoint: { x, y }
-      });
-      return;
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
+    // Only handle card clicks if we're not drawing
+    if (!drawingState.isDrawing && onSelectButton) {
+      // Check if we clicked directly on the card (not on a button)
+      const target = e.target as HTMLElement;
+      const buttonElement = target.closest('[data-button-id]');
+      
+      // If we didn't click on a button, deselect
+      if (!buttonElement) {
+        onSelectButton(null, isEditingBackground);
+      }
     }
 
-    // If we're in browse mode or no tool is selected, handle selection
-    if (selectedTool === 'browse' || !selectedTool) {
-      // Check if we clicked on a button
+    // Call the original onCardClick if provided
+    if (onCardClick) {
+      onCardClick();
+    }
+  }, [drawingState.isDrawing, onSelectButton, isEditingBackground, onCardClick]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // If we're in button tool mode
+    if (selectedTool === 'button') {
+      // Check if we clicked on an existing button
       const target = e.target as HTMLElement;
       const buttonElement = target.closest('[data-button-id]');
       
@@ -93,10 +98,24 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         }
       }
 
-      // If we clicked outside a button, deselect
-      if (onSelectButton) {
-        onSelectButton(null, isEditingBackground);
+      // If we didn't click on a button, start drawing a new one
+      if (onAddButton) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        setDrawingState({
+          isDrawing: true,
+          startPoint: { x, y },
+          currentPoint: { x, y }
+        });
+        return;
       }
+    }
+
+    // If we're in browse mode, don't allow selection
+    if (selectedTool === 'browse') {
+      return;
     }
   }, [selectedTool, onAddButton, onSelectButton, currentLayer.buttons, isEditingBackground]);
 
@@ -169,7 +188,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   // Render a button with selection state
   const renderButton = (button: HyperCardButton, isBackground: boolean) => {
     const isSelected = selectedButtonId === button.id;
-    const showSelection = isSelected && (selectedTool === 'browse' || !selectedTool);
+    const showSelection = isSelected && selectedTool === 'button';
 
     return (
       <div
@@ -196,13 +215,13 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     <>
       <style>{buttonSelectionStyles}</style>
       <div 
-        className={`relative bg-white border-2 ${isEditingBackground ? 'border-blue-500' : 'border-black'} shadow-md ${isEditingBackground ? 'bg-[url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h10v10H0zM10 10h10v10H10z\' fill=\'%23f0f0f0\' fill-opacity=\'0.4\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")]' : ''}`}
+        className={`relative bg-white border-2 ${isEditingBackground ? 'border-blue-500' : 'border-black'} shadow-md ${isEditingBackground ? 'bg-[url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h10v10H0zM10 10h10v10H10z\' fill=\'%23f0f0f0\' fill-opacity=\'0.4\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")]' : ''} card-container`}
         style={{ 
           width: cardWidth, 
           height: cardHeight,
           cursor: selectedTool === 'button' ? 'crosshair' : (onCardClick ? 'pointer' : 'default')
         }}
-        onClick={onCardClick}
+        onClick={handleCardClick}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
