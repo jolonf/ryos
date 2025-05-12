@@ -1,7 +1,11 @@
 import React from "react";
-import { WindowFrame } from "@/components/layout/WindowFrame";
-import { AppProps } from "../../base/types";
-import { useWindowManager } from "@/hooks/useWindowManager";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,9 +21,9 @@ export interface InspectorSelection {
   id: string;
 }
 
-interface PropertyInspectorWindowProps extends Omit<AppProps, "appId"> {
-  isVisible: boolean;
-  onClose: () => void;
+interface PropertyInspectorDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
   selection: InspectorSelection | null;
   currentStack: HyperCardStack | null;
   currentCard: Card | null;
@@ -147,23 +151,16 @@ const EmptyPanel: React.FC = () => {
   );
 };
 
-export function PropertyInspectorWindow({
-  isVisible,
-  onClose,
+export function PropertyInspectorDialog({
+  isOpen,
+  onOpenChange,
   selection,
   currentStack,
   currentCard,
   isEditingBackground,
   onUpdateStack,
   onUpdateCard,
-  isForeground = true,
-  skipInitialSound = false,
-}: PropertyInspectorWindowProps) {
-  // Use window manager hook to handle window state
-  useWindowManager({ appId: "hypercard" });
-
-  if (!isVisible) return null;
-
+}: PropertyInspectorDialogProps) {
   // Determine what to show in the inspector
   const renderContent = () => {
     if (!selection) return <EmptyPanel />;
@@ -196,22 +193,16 @@ export function PropertyInspectorWindow({
   };
 
   return (
-    <WindowFrame
-      title="Properties"
-      onClose={onClose}
-      isForeground={isForeground}
-      appId="hypercard"
-      skipInitialSound={skipInitialSound}
-      windowConstraints={{
-        minWidth: 240,
-        minHeight: 300,
-        maxWidth: 240,
-        maxHeight: 600,
-      }}
-    >
-      <div className="flex flex-col h-full w-full bg-[#c0c0c0]">
-        {renderContent()}
-      </div>
-    </WindowFrame>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-system7-window-bg border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] w-[240px]">
+        <DialogHeader>
+          <DialogTitle className="font-normal text-[16px]">Properties</DialogTitle>
+          <DialogDescription className="sr-only">Property Inspector</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col h-full w-full bg-[#c0c0c0]">
+          {renderContent()}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 } 

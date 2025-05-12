@@ -17,7 +17,7 @@ import { useFilesStore } from "@/stores/useFilesStore";
 import { useAppStore } from "@/stores/useAppStore";
 import { CardComponent } from './CardComponent';
 import { ToolId, TOOLS, Tool } from "./ToolsPaletteWindow";
-import { PropertyInspectorWindow, InspectorSelection } from "./PropertyInspectorWindow";
+import { PropertyInspectorDialog, InspectorSelection } from "./PropertyInspectorDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -475,12 +475,7 @@ export function HyperCardAppComponent({
             operations.addCard(`Card ${cardNumber}`);
           }
         }}
-        onDeleteCard={() => {
-          if (currentStack && currentStack.cards.length > 1) {
-            const currentCard = currentStack.cards[currentStack.currentCardIndex];
-            operations.deleteCard(currentCard.id);
-          }
-        }}
+        onDeleteCard={handleDeleteCard}
         hasUnsavedChanges={isModified}
         currentStackPath={currentFileExists ? currentStack?.path || null : null}
         canNavigateCards={!!currentStack && currentStack.cards.length > 1}
@@ -492,7 +487,11 @@ export function HyperCardAppComponent({
         onTogglePropertyInspector={() => setIsPropertyInspectorVisible(!isPropertyInspectorVisible)}
       />
       <WindowFrame
-        title={`${currentStack?.name || "Untitled"} - ${isEditingBackground ? "Background" : `Card ${currentStack ? currentStack.currentCardIndex + 1 : 0} of ${currentStack?.cards.length || 0}`}${isModified ? " •" : ""}`}
+        title={
+          currentStack
+            ? `${currentStack.name}${isModified ? " •" : ""}`
+            : "Untitled Stack"
+        }
         onClose={onClose}
         isForeground={isForeground}
         appId="hypercard"
@@ -549,19 +548,16 @@ export function HyperCardAppComponent({
         </div>
       </WindowFrame>
 
-      {/* Property Inspector Window */}
-      <PropertyInspectorWindow
-        isVisible={isPropertyInspectorVisible}
-        onClose={() => setIsPropertyInspectorVisible(false)}
+      {/* Property Inspector Dialog */}
+      <PropertyInspectorDialog
+        isOpen={isPropertyInspectorVisible}
+        onOpenChange={setIsPropertyInspectorVisible}
         selection={inspectorSelection}
         currentStack={currentStack}
         currentCard={currentStack?.cards[currentStack.currentCardIndex] || null}
         isEditingBackground={isEditingBackground}
         onUpdateStack={handleStackUpdate}
         onUpdateCard={handleCardUpdate}
-        isForeground={isForeground}
-        skipInitialSound={skipInitialSound}
-        isWindowOpen={isWindowOpen}
       />
 
       {/* Dialogs */}
@@ -610,4 +606,4 @@ export function HyperCardAppComponent({
       />
     </>
   );
-} 
+}
