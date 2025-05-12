@@ -56,6 +56,19 @@ export function HyperCardAppComponent({
     setIsConfirmCloseDialogOpen(false);
   });
 
+  // Add state to track if current file exists
+  const [currentFileExists, setCurrentFileExists] = useState(false);
+
+  // Update file existence check when stack or path changes
+  useEffect(() => {
+    if (currentStack?.path) {
+      const fileItem = fileStore.getItem(currentStack.path);
+      setCurrentFileExists(!!fileItem && !fileItem.isDirectory);
+    } else {
+      setCurrentFileExists(false);
+    }
+  }, [currentStack?.path, fileStore]);
+
   // Initialize HyperCard Stacks directory and create default stack
   useEffect(() => {
     const initializeHyperCardDirectory = () => {
@@ -304,7 +317,7 @@ export function HyperCardAppComponent({
         onSaveStackAs={handleSaveStackAs}
         onCloseStack={handleCloseStack}
         hasUnsavedChanges={isModified}
-        currentStackPath={currentStack?.path || null}
+        currentStackPath={currentFileExists ? currentStack?.path || null : null}
         isWindowOpen={isWindowOpen}
         isForeground={isForeground}
       />
