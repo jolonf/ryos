@@ -85,6 +85,15 @@ export interface StackOperations {
   closeStack: () => void;
   getRecentStacks: () => string[];
   addToRecentStacks: (path: string) => void;
+  
+  // Card Management Operations
+  addCard: (name: string, position?: number) => Promise<HyperCardCard>;
+  deleteCard: (cardId: string) => Promise<void>;
+  moveCard: (cardId: string, newPosition: number) => Promise<void>;
+  updateCard: (cardId: string, updates: Partial<HyperCardCard>) => Promise<void>;
+  navigateToCard: (cardId: string) => Promise<void>;
+  navigateToNextCard: () => Promise<void>;
+  navigateToPreviousCard: () => Promise<void>;
 }
 
 // Store types

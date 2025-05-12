@@ -22,8 +22,13 @@ export interface HyperCardMenuBarProps {
   onSaveStack: () => void;
   onSaveStackAs: () => void;
   onCloseStack: () => void;
+  onNextCard: () => void;
+  onPreviousCard: () => void;
+  onAddCard: () => void;
+  onDeleteCard: () => void;
   hasUnsavedChanges?: boolean;
   currentStackPath?: string | null;
+  canNavigateCards?: boolean;
 }
 
 export function HyperCardMenuBar({
@@ -35,8 +40,13 @@ export function HyperCardMenuBar({
   onSaveStack,
   onSaveStackAs,
   onCloseStack,
+  onNextCard,
+  onPreviousCard,
+  onAddCard,
+  onDeleteCard,
   hasUnsavedChanges,
   currentStackPath,
+  canNavigateCards = false,
 }: HyperCardMenuBarProps) {
   return (
     <MenuBar>
@@ -144,6 +154,63 @@ export function HyperCardMenuBar({
             className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
           >
             Clear
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Card Menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="default"
+            className="h-6 text-md px-2 py-1 border-none hover:bg-gray-200 active:bg-gray-900 active:text-white focus-visible:ring-0"
+          >
+            Card
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" sideOffset={1} className="px-0">
+          <DropdownMenuItem
+            onClick={onNextCard}
+            disabled={!canNavigateCards}
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+          >
+            Next Card
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={onPreviousCard}
+            disabled={!canNavigateCards}
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+          >
+            Previous Card
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
+          <DropdownMenuItem
+            onClick={onAddCard}
+            disabled={!currentStackPath}
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+          >
+            New Card
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={onDeleteCard}
+            disabled={!currentStackPath || !canNavigateCards}
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+          >
+            Delete Card
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
+          <DropdownMenuItem
+            disabled
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+          >
+            Background
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+          >
+            Card Info...
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

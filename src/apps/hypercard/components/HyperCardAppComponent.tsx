@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { HyperCardStack } from "../types/stack";
 import { useFilesStore } from "@/stores/useFilesStore";
 import { useAppStore } from "@/stores/useAppStore";
+import { CardComponent } from './CardComponent';
 
 const HYPERCARD_STACKS_DIR = "/HyperCard Stacks";
 
@@ -309,6 +310,37 @@ export function HyperCardAppComponent({
     confirmHandlerRef.current();
   };
 
+  // Card navigation handlers
+  const handleNextCard = () => {
+    if (currentStack) {
+      operations.navigateToNextCard();
+    }
+  };
+
+  const handlePreviousCard = () => {
+    if (currentStack) {
+      operations.navigateToPreviousCard();
+    }
+  };
+
+  const handleAddCard = async () => {
+    if (currentStack) {
+      const cardNumber = currentStack.cards.length + 1;
+      await operations.addCard(`Card ${cardNumber}`);
+      toast.success(`Added Card ${cardNumber}`);
+    }
+  };
+
+  const handleDeleteCard = async () => {
+    if (currentStack && currentStack.cards.length > 1) {
+      const currentCard = currentStack.cards[currentStack.currentCardIndex];
+      await operations.deleteCard(currentCard.id);
+      toast.success(`Deleted ${currentCard.name}`);
+    } else {
+      toast.error("Cannot delete the last card");
+    }
+  };
+
   if (!isWindowOpen) return null;
 
   return (
@@ -322,13 +354,18 @@ export function HyperCardAppComponent({
         onSaveStack={handleSaveStack}
         onSaveStackAs={handleSaveStackAs}
         onCloseStack={handleCloseStack}
+        onNextCard={handleNextCard}
+        onPreviousCard={handlePreviousCard}
+        onAddCard={handleAddCard}
+        onDeleteCard={handleDeleteCard}
         hasUnsavedChanges={isModified}
         currentStackPath={currentFileExists ? currentStack?.path || null : null}
+        canNavigateCards={!!currentStack && currentStack.cards.length > 1}
         isWindowOpen={isWindowOpen}
         isForeground={isForeground}
       />
       <WindowFrame
-        title={`${currentStack?.name || "Untitled"}${isModified ? " •" : ""}`}
+        title={`${currentStack?.name || "Untitled"} - Card ${currentStack ? currentStack.currentCardIndex + 1 : 0} of ${currentStack?.cards.length || 0}${isModified ? " •" : ""}`}
         onClose={onClose}
         isForeground={isForeground}
         appId="hypercard"
@@ -336,18 +373,18 @@ export function HyperCardAppComponent({
       >
         <div className="flex flex-col h-full w-full min-h-0 p-2 bg-[#c0c0c0]">
           {currentStack ? (
-            <div className="flex-1 bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] p-4">
-              {/* Stack content will go here */}
-              <div className="text-center text-gray-500">
-                Stack: {currentStack.name}
-                <br />
-                Cards: {currentStack.cards.length}
-                <br />
-                Current Card: {currentStack.currentCardIndex + 1}
-              </div>
+            <div className="flex-1 flex items-center justify-center">
+              {currentStack.cards[currentStack.currentCardIndex] && (
+                <CardComponent
+                  card={currentStack.cards[currentStack.currentCardIndex]}
+                  width={512}
+                  height={342}
+                  isActive={true}
+                />
+              )}
             </div>
           ) : (
-            <div className="flex-1 flex items-center justify-center bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
+            <div className="flex-1 flex items-center justify-center bg-white">
               <div className="text-center text-gray-500">
                 No stack open
                 <br />
