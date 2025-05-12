@@ -29,6 +29,7 @@ const getFileType = (file: FileItem): string => {
   if (file.type === "Music") return "MP3 Audio";
   if (file.type === "Video") return "QuickTime Movie";
   if (file.type === "site-link") return "Internet Shortcut";
+  if (file.type === "stack") return "HyperCard Stack";
 
   // Check for application
   if (file.appId) {
@@ -57,6 +58,8 @@ const getFileType = (file: FileItem): string => {
       return "MP3 Audio File";
     case "mov":
       return "QuickTime Movie";
+    case "stack":
+      return "HyperCard Stack";
     default:
       return "Unknown";
   }

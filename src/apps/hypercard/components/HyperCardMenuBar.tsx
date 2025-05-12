@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { generateAppShareUrl } from "@/utils/sharedUrl";
 import { toast } from "sonner";
 
-interface HyperCardMenuBarProps {
+export interface HyperCardMenuBarProps {
   isWindowOpen: boolean;
   isForeground: boolean;
   onClose: () => void;
@@ -20,8 +20,10 @@ interface HyperCardMenuBarProps {
   onNewStack: () => void;
   onOpenStack: () => void;
   onSaveStack: () => void;
-  hasUnsavedChanges: boolean;
-  currentStackPath: string | null;
+  onSaveStackAs: () => void;
+  onCloseStack: () => void;
+  hasUnsavedChanges?: boolean;
+  currentStackPath?: string | null;
 }
 
 export function HyperCardMenuBar({
@@ -31,6 +33,8 @@ export function HyperCardMenuBar({
   onNewStack,
   onOpenStack,
   onSaveStack,
+  onSaveStackAs,
+  onCloseStack,
   hasUnsavedChanges,
   currentStackPath,
 }: HyperCardMenuBarProps) {
@@ -66,6 +70,13 @@ export function HyperCardMenuBar({
             className="text-md h-6 px-3 active:bg-gray-900 active:text-white"
           >
             {currentStackPath ? "Save Stack" : "Save Stack As..."}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
+          <DropdownMenuItem
+            onClick={onCloseStack}
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white"
+          >
+            Close Stack
           </DropdownMenuItem>
           <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
           <DropdownMenuItem

@@ -55,6 +55,7 @@ function getFileTypeFromName(name: string): string {
     case 'gif': return 'gif';
     case 'webp': return 'webp';
     case 'bmp': return 'bmp';
+    case 'stack': return 'stack';
     default: return 'unknown';
   }
 }

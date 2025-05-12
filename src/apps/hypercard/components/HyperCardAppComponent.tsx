@@ -1,104 +1,326 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { WindowFrame } from "@/components/layout/WindowFrame";
 import { AppProps } from "../../base/types";
 import { HelpDialog } from "@/components/dialogs/HelpDialog";
 import { AboutDialog } from "@/components/dialogs/AboutDialog";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
+import { InputDialog } from "@/components/dialogs/InputDialog";
 import { helpItems, appMetadata } from "..";
 import { HyperCardMenuBar } from "./HyperCardMenuBar";
+import { useStackStore } from "../stores/useStackStore";
+import { useFileSystem } from "@/apps/finder/hooks/useFileSystem";
+import { useLaunchApp } from "@/hooks/useLaunchApp";
+import { toast } from "sonner";
+import { HyperCardStack } from "../types/stack";
+import { useFilesStore } from "@/stores/useFilesStore";
+
+const HYPERCARD_STACKS_DIR = "/HyperCard Stacks";
 
 export function HyperCardAppComponent({
   onClose,
   isWindowOpen,
   isForeground = true,
   skipInitialSound,
-  helpItems: propHelpItems,
+  initialData,
 }: AppProps) {
+  // Dialog states
   const [isHelpDialogOpen, setIsHelpDialogOpen] = useState(false);
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
-  const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [currentStackPath, setCurrentStackPath] = useState<string | null>(null);
+  const [isNewStackDialogOpen, setIsNewStackDialogOpen] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isConfirmCloseDialogOpen, setIsConfirmCloseDialogOpen] = useState(false);
+  const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
+  const [errorDialogMessage, setErrorDialogMessage] = useState("");
 
-  const handleNewStack = () => {
-    if (hasUnsavedChanges) {
-      setIsUnsavedChangesDialogOpen(true);
+  // Input states
+  const [newStackName, setNewStackName] = useState("Untitled Stack");
+  const [saveStackName, setSaveStackName] = useState("");
+
+  // Stack operations
+  const { 
+    currentStack, 
+    isModified, 
+    operations,
+    lastSavedPath 
+  } = useStackStore();
+
+  // Get file system operations
+  const { saveFile, handleFileOpen, createFolder } = useFileSystem();
+  const fileStore = useFilesStore();
+
+  const launchApp = useLaunchApp();
+
+  // Initialize HyperCard Stacks directory
+  useEffect(() => {
+    const initializeHyperCardDirectory = () => {
+      // Check if directory exists
+      const stacksDir = fileStore.getItem(HYPERCARD_STACKS_DIR);
+      if (!stacksDir) {
+        // Create the directory if it doesn't exist
+        createFolder({
+          path: HYPERCARD_STACKS_DIR,
+          name: "HyperCard Stacks"
+        });
+      }
+    };
+
+    initializeHyperCardDirectory();
+  }, [createFolder, fileStore]);
+
+  // Implement file system operations
+  const saveStackOperation = useCallback(async (stack: HyperCardStack, path?: string) => {
+    try {
+      // If no path is provided, construct one in the HyperCard Stacks directory
+      const savePath = path || `${HYPERCARD_STACKS_DIR}/${stack.name}.stack`;
+      const fileName = savePath.split("/").pop() || `${stack.name}.stack`;
+
+      // Ensure the directory exists
+      const dirPath = HYPERCARD_STACKS_DIR;
+      const dir = fileStore.getItem(dirPath);
+      if (!dir || !dir.isDirectory) {
+        throw new Error(`Directory "${dirPath}" does not exist. Please save to the HyperCard Stacks folder.`);
+      }
+
+      // Save the file
+      await saveFile({
+        name: fileName,
+        path: savePath,
+        content: JSON.stringify(stack),
+        type: "application/json"
+      });
+
+      // Update store state after successful save
+      operations.addToRecentStacks(savePath);
+      useStackStore.setState({
+        isModified: false,
+        lastSavedPath: savePath,
+        currentStack: {
+          ...stack,
+          path: savePath
+        }
+      });
+
+      return savePath;
+    } catch (error) {
+      console.error("Error saving stack:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save stack";
+      throw new Error(errorMessage);
+    }
+  }, [saveFile, fileStore, operations]);
+
+  const loadStackOperation = useCallback(async (path: string) => {
+    try {
+      const fileItem = {
+        name: path.split("/").pop() || "untitled.stack",
+        path: path,
+        isDirectory: false,
+        type: "stack",
+        appId: "hypercard"
+      };
+
+      await handleFileOpen(fileItem);
+      return currentStack!;
+    } catch (error) {
+      console.error("Error loading stack:", error);
+      throw error;
+    }
+  }, [handleFileOpen, currentStack]);
+
+  // Override store operations with file system implementations
+  useEffect(() => {
+    if (operations) {
+      operations.saveStack = saveStackOperation;
+      operations.loadStack = loadStackOperation;
+    }
+  }, [operations, saveStackOperation, loadStackOperation]);
+
+  // Handle initial data when loading a stack
+  useEffect(() => {
+    if (initialData?.path && initialData?.content) {
+      try {
+        const content = initialData.content;
+        if (typeof content === 'string') {
+          const stack = JSON.parse(content);
+          operations.newStack(stack.name);
+          // TODO: Set the stack content properly
+          toast.success(`Loaded stack: ${stack.name}`);
+        }
+      } catch (error) {
+        console.error("Error loading stack from initial data:", error);
+        toast.error("Failed to load stack");
+      }
+    }
+  }, [initialData, operations]);
+
+  // Handle new stack
+  const handleNewStack = async () => {
+    if (isModified) {
+      setIsConfirmCloseDialogOpen(true);
       return;
     }
-    // TODO: Implement new stack
-    setCurrentStackPath(null);
-    setHasUnsavedChanges(false);
+    setIsNewStackDialogOpen(true);
   };
 
+  const handleNewStackSubmit = async (name: string) => {
+    try {
+      await operations.newStack(name);
+      setIsNewStackDialogOpen(false);
+      toast.success(`Created new stack: ${name}`);
+    } catch (error) {
+      console.error("Error creating new stack:", error);
+      toast.error("Failed to create new stack");
+    }
+  };
+
+  // Handle save stack
+  const handleSaveStack = async () => {
+    if (!currentStack) return;
+
+    try {
+      // If we have a lastSavedPath, use it, otherwise construct a new path
+      const savePath = currentStack.path || `${HYPERCARD_STACKS_DIR}/${currentStack.name}.stack`;
+      await saveStackOperation(currentStack, savePath);
+      toast.success(`Saved stack: ${currentStack.name}`);
+    } catch (error) {
+      // Show error in a dialog
+      setErrorDialogMessage(error instanceof Error ? error.message : "Failed to save stack");
+      setIsErrorDialogOpen(true);
+    }
+  };
+
+  const handleSaveStackAs = async () => {
+    if (!currentStack) return;
+    setSaveStackName(currentStack.name);
+    setIsSaveDialogOpen(true);
+  };
+
+  const handleSaveStackSubmit = async (name: string) => {
+    if (!currentStack) return;
+
+    try {
+      // Construct the full path for the new file
+      const savePath = `${HYPERCARD_STACKS_DIR}/${name}.stack`;
+      await saveStackOperation(currentStack, savePath);
+      setIsSaveDialogOpen(false);
+      toast.success(`Saved stack as: ${name}`);
+    } catch (error) {
+      // Show error in a dialog
+      setErrorDialogMessage(error instanceof Error ? error.message : "Failed to save stack");
+      setIsErrorDialogOpen(true);
+    }
+  };
+
+  // Handle open stack
   const handleOpenStack = () => {
-    if (hasUnsavedChanges) {
-      setIsUnsavedChangesDialogOpen(true);
-      return;
-    }
-    // TODO: Implement open stack
+    launchApp("finder", { initialPath: "/HyperCard Stacks" });
   };
 
-  const handleSaveStack = () => {
-    if (!currentStackPath) {
-      // TODO: Implement save as
+  // Handle close stack
+  const handleCloseStack = () => {
+    if (isModified) {
+      setIsConfirmCloseDialogOpen(true);
       return;
     }
-    // TODO: Implement save
-    setHasUnsavedChanges(false);
+    operations.closeStack();
   };
+
+  const handleConfirmCloseStack = () => {
+    operations.closeStack();
+    setIsConfirmCloseDialogOpen(false);
+  };
+
+  if (!isWindowOpen) return null;
 
   return (
     <>
       <HyperCardMenuBar
-        isWindowOpen={isWindowOpen}
-        isForeground={isForeground}
         onClose={onClose}
         onShowHelp={() => setIsHelpDialogOpen(true)}
         onShowAbout={() => setIsAboutDialogOpen(true)}
         onNewStack={handleNewStack}
         onOpenStack={handleOpenStack}
         onSaveStack={handleSaveStack}
-        hasUnsavedChanges={hasUnsavedChanges}
-        currentStackPath={currentStackPath}
+        onSaveStackAs={handleSaveStackAs}
+        onCloseStack={handleCloseStack}
+        hasUnsavedChanges={isModified}
+        currentStackPath={currentStack?.path || null}
+        isWindowOpen={isWindowOpen}
+        isForeground={isForeground}
       />
-
       <WindowFrame
-        title="HyperCard"
+        title={`${currentStack?.name || "Untitled"}${isModified ? " •" : ""}`}
         onClose={onClose}
         isForeground={isForeground}
         appId="hypercard"
         skipInitialSound={skipInitialSound}
       >
-        <div className="flex-1 bg-white p-4 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-2">HyperCard</h1>
-            <p className="text-gray-600">Coming Soon</p>
-          </div>
+        <div className="flex flex-col h-full w-full min-h-0 p-2 bg-[#c0c0c0]">
+          {currentStack ? (
+            <div className="flex-1 bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] p-4">
+              {/* Stack content will go here */}
+              <div className="text-center text-gray-500">
+                Stack: {currentStack.name}
+                <br />
+                Cards: {currentStack.cards.length}
+                <br />
+                Current Card: {currentStack.currentCardIndex + 1}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
+              <div className="text-center text-gray-500">
+                No stack open
+                <br />
+                Choose New Stack or Open Stack from the File menu
+              </div>
+            </div>
+          )}
         </div>
       </WindowFrame>
 
+      {/* Dialogs */}
       <HelpDialog
         isOpen={isHelpDialogOpen}
         onOpenChange={setIsHelpDialogOpen}
-        helpItems={propHelpItems || helpItems}
+        helpItems={helpItems}
         appName="HyperCard"
       />
-
       <AboutDialog
         isOpen={isAboutDialogOpen}
         onOpenChange={setIsAboutDialogOpen}
         metadata={appMetadata}
       />
-
+      <InputDialog
+        isOpen={isNewStackDialogOpen}
+        onOpenChange={setIsNewStackDialogOpen}
+        onSubmit={handleNewStackSubmit}
+        title="New Stack"
+        description="Enter a name for your new stack"
+        value={newStackName}
+        onChange={setNewStackName}
+      />
+      <InputDialog
+        isOpen={isSaveDialogOpen}
+        onOpenChange={setIsSaveDialogOpen}
+        onSubmit={handleSaveStackSubmit}
+        title="Save Stack As"
+        description="Enter a name for your stack"
+        value={saveStackName}
+        onChange={setSaveStackName}
+      />
       <ConfirmDialog
-        isOpen={isUnsavedChangesDialogOpen}
-        onOpenChange={setIsUnsavedChangesDialogOpen}
-        onConfirm={() => {
-          handleSaveStack();
-          setIsUnsavedChangesDialogOpen(false);
-        }}
-        title="Unsaved Changes"
-        description="Do you want to save your changes before closing?"
+        isOpen={isConfirmCloseDialogOpen}
+        onOpenChange={setIsConfirmCloseDialogOpen}
+        onConfirm={handleConfirmCloseStack}
+        title="Close Stack"
+        description="Are you sure you want to close this stack? Any unsaved changes will be lost."
+      />
+      <ConfirmDialog
+        isOpen={isErrorDialogOpen}
+        onOpenChange={setIsErrorDialogOpen}
+        onConfirm={() => setIsErrorDialogOpen(false)}
+        title="Error"
+        description={errorDialogMessage}
       />
     </>
   );

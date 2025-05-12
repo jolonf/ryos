@@ -900,6 +900,11 @@ export function useFileSystem(
           launchApp("paint", {
             initialData: { path: file.path, content: contentToUse },
           }); // Pass contentToUse (Blob)
+        } else if (file.path.startsWith("/HyperCard Stacks/") && file.name.endsWith(".stack")) {
+          // Handle HyperCard stack files
+          launchApp("hypercard", {
+            initialData: { path: file.path, content: contentAsString ?? "" },
+          });
         } else if (file.appId === "ipod" && file.data?.index !== undefined) {
           // iPod uses data directly from the index we calculated
           const trackIndex = file.data.index;
