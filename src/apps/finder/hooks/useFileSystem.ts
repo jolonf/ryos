@@ -411,6 +411,8 @@ function getFileIcon(item: FileSystemItem): string {
       return "/icons/video-tape.png";
     case "site-link":
       return "/icons/site.png";
+    case "stack":
+      return "/icons/stack.png";
     default:
       return "/icons/file.png";
   }
