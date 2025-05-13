@@ -378,9 +378,19 @@ export function HyperCardAppComponent({
 
   const handleAddCard = async () => {
     if (currentStack) {
-      const cardNumber = currentStack.cards.length + 1;
-      await operations.addCard(`Card ${cardNumber}`);
-      toast.success(`Added Card ${cardNumber}`);
+      const currentCardIndex = currentStack.currentCardIndex;
+      const newCardName = `Card ${currentStack.cards.length + 1}`;
+      
+      // Get the new card from the addCard operation
+      const newCard = await operations.addCard(newCardName, currentCardIndex + 1);
+      
+      // Navigate to the new card using its ID
+      if (newCard) {
+        await operations.navigateToCard(newCard.id);
+        toast.success(`Added ${newCardName} after current card`);
+      } else {
+        toast.error("Failed to create new card");
+      }
     }
   };
 
@@ -655,12 +665,7 @@ export function HyperCardAppComponent({
         onCloseStack={handleCloseStack}
         onNextCard={() => operations.navigateToNextCard()}
         onPreviousCard={() => operations.navigateToPreviousCard()}
-        onAddCard={() => {
-          if (currentStack) {
-            const cardNumber = currentStack.cards.length + 1;
-            operations.addCard(`Card ${cardNumber}`);
-          }
-        }}
+        onAddCard={handleAddCard}
         onDeleteCard={handleDeleteCard}
         hasUnsavedChanges={isModified}
         currentStackPath={currentFileExists ? currentStack?.path || null : null}
