@@ -20,6 +20,7 @@ import { ToolId, TOOLS, Tool } from "./ToolsPaletteWindow";
 import { PropertyInspectorDialog, InspectorSelection } from "./PropertyInspectorDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 
 const HYPERCARD_STACKS_DIR = "/HyperCard Stacks";
 
@@ -713,6 +714,39 @@ export function HyperCardAppComponent({
                         <span className="text-lg">{tool.icon}</span>
                       </Button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Navigation Panel */}
+                <div className="bg-white border border-black w-full shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
+                  <div className="grid grid-cols-3 gap-0 p-1">
+                    <Button
+                      variant="ghost"
+                      className="h-10 w-10 p-0 flex items-center justify-center bg-white border border-black hover:bg-gray-100 active:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => operations.navigateToPreviousCard()}
+                      disabled={!currentStack || currentStack.cards.length <= 1}
+                      title="Previous Card"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-10 w-10 p-0 flex items-center justify-center bg-white border border-black hover:bg-gray-100 active:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => currentStack && operations.navigateToCard(currentStack.cards[0].id)}
+                      disabled={!currentStack || currentStack.cards.length === 0}
+                      title="First Card"
+                    >
+                      <Home className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-10 w-10 p-0 flex items-center justify-center bg-white border border-black hover:bg-gray-100 active:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => operations.navigateToNextCard()}
+                      disabled={!currentStack || currentStack.cards.length <= 1}
+                      title="Next Card"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
                   </div>
                 </div>
               </div>
