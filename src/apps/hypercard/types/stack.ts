@@ -19,6 +19,7 @@ export interface StackMetadata {
     duration: number;
   };
   tags?: string[];
+  resourcesPath?: string;  // Path to the resources directory
 }
 
 export interface HyperCardStack {
@@ -38,6 +39,7 @@ export interface HyperCardBackground {
   patterns: HyperCardPattern[];
   buttons: HyperCardButton[];
   fields: HyperCardField[];
+  bitmap?: string;  // Path to stack background bitmap, relative to stack resources directory
 }
 
 export interface HyperCardLayer {
@@ -92,6 +94,15 @@ export interface StackState {
   isEditingBackground: boolean;  // Whether we're in background editing mode
 }
 
+// Add a type for managing bitmaps
+export interface BitmapOperations {
+  createBitmap: (width: number, height: number) => Promise<string>;  // Returns path to new bitmap
+  saveBitmap: (bitmapPath: string, imageData: ImageData) => Promise<void>;
+  loadBitmap: (bitmapPath: string) => Promise<ImageData>;
+  deleteBitmap: (bitmapPath: string) => Promise<void>;
+}
+
+// Update StackOperations to include bitmap operations
 export interface StackOperations {
   newStack: (name: string) => Promise<HyperCardStack>;
   saveStack: (stack: HyperCardStack, path?: string) => Promise<string>;
@@ -112,6 +123,9 @@ export interface StackOperations {
   // Metadata operations
   updateStackMetadata: (metadata: Partial<StackMetadata>) => Promise<void>;
   getStackMetadata: () => StackMetadata | null;
+  
+  // Bitmap operations
+  bitmaps: BitmapOperations;
   
   // Background operations
   createBackground: (name: string) => Promise<HyperCardBackground>;

@@ -1,7 +1,8 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Card } from '../types/card';
 import { HyperCardPattern, HyperCardButton, HyperCardField } from '../types/stack';
 import { ToolId } from '../components/ToolsPaletteWindow';
+import { useStackStore } from '../stores/useStackStore';
 
 interface CardComponentProps {
   card: Card;
@@ -23,7 +24,11 @@ interface DrawingState {
   isDrawing: boolean;
   startPoint: { x: number; y: number } | null;
   currentPoint: { x: number; y: number } | null;
-  isCreatingButton?: boolean;
+  lineWidth: number;
+  pattern: HyperCardPattern;
+  fillStyle: string;
+  strokeStyle: string;
+  isShiftPressed: boolean;
 }
 
 interface DragState {
@@ -70,18 +75,288 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   onUpdateButton,
   onTogglePropertyInspector,
   onNavigateToCard
-}) => {
-  // Default card size if not specified (matches classic HyperCard)
-  const cardWidth = width || 512;
-  const cardHeight = height || 342;
+}: CardComponentProps): JSX.Element => {
+  // Canvas refs
+  const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
+  const cardCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Drawing state
   const [drawingState, setDrawingState] = useState<DrawingState>({
     isDrawing: false,
     startPoint: null,
-    currentPoint: null
+    currentPoint: null,
+    lineWidth: 1,
+    pattern: {
+      id: 'default',
+      type: 'solid',
+      value: 'black',
+      position: { x: 0, y: 0 },
+      size: { width: 1, height: 1 }
+    },
+    fillStyle: 'black',
+    strokeStyle: 'black',
+    isShiftPressed: false
   });
 
+  // Get bitmap operations from store
+  const bitmapOperations = useStackStore(state => state.operations.bitmaps);
+
+  // Load and render background bitmap
+  useEffect(() => {
+    const loadBackground = async () => {
+      if (!backgroundCanvasRef.current || !card.background.bitmap) return;
+
+      try {
+        const ctx = backgroundCanvasRef.current.getContext('2d');
+        if (!ctx) return;
+
+        const imageData = await bitmapOperations.loadBitmap(card.background.bitmap);
+        ctx.putImageData(imageData, 0, 0);
+      } catch (error) {
+        console.error('Error loading background bitmap:', error);
+      }
+    };
+
+    loadBackground();
+  }, [card.background.bitmap, bitmapOperations]);
+
+  // Load and render card bitmap
+  useEffect(() => {
+    const loadCard = async () => {
+      if (!cardCanvasRef.current || !card.bitmap) return;
+
+      try {
+        const ctx = cardCanvasRef.current.getContext('2d');
+        if (!ctx) return;
+
+        const imageData = await bitmapOperations.loadBitmap(card.bitmap);
+        ctx.putImageData(imageData, 0, 0);
+      } catch (error) {
+        console.error('Error loading card bitmap:', error);
+      }
+    };
+
+    loadCard();
+  }, [card.bitmap, bitmapOperations]);
+
+  // Add keyboard event handlers for modifier keys
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setDrawingState(prev => ({ ...prev, isShiftPressed: true }));
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setDrawingState(prev => ({ ...prev, isShiftPressed: false }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Helper function to draw shapes
+  const drawShape = (ctx: CanvasRenderingContext2D, shape: 'rectangle' | 'oval' | 'line', start: { x: number; y: number }, end: { x: number; y: number }, isShiftPressed: boolean) => {
+    const width = end.x - start.x;
+    const height = end.y - start.y;
+
+    if (isShiftPressed) {
+      // Make shape perfect (square/circle/45° line)
+      const size = Math.max(Math.abs(width), Math.abs(height));
+      const signX = Math.sign(width);
+      const signY = Math.sign(height);
+
+      if (shape === 'line') {
+        // Snap to 45° angles
+        const angle = Math.atan2(height, width);
+        const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+        const length = Math.sqrt(width * width + height * height);
+        end.x = start.x + Math.cos(snappedAngle) * length;
+        end.y = start.y + Math.sin(snappedAngle) * length;
+      } else {
+        end.x = start.x + size * signX;
+        end.y = start.y + size * signY;
+      }
+    }
+
+    ctx.beginPath();
+    if (shape === 'rectangle') {
+      ctx.rect(
+        Math.min(start.x, end.x),
+        Math.min(start.y, end.y),
+        Math.abs(end.x - start.x),
+        Math.abs(end.y - start.y)
+      );
+    } else if (shape === 'oval') {
+      const centerX = (start.x + end.x) / 2;
+      const centerY = (start.y + end.y) / 2;
+      const radiusX = Math.abs(end.x - start.x) / 2;
+      const radiusY = Math.abs(end.y - start.y) / 2;
+      ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+    } else if (shape === 'line') {
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+    }
+    ctx.stroke();
+  };
+
+  // Handle mouse events for drawing
+  const handleDrawingMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    console.log('Drawing mouse down:', {
+      tool: selectedTool,
+      canvasRef: !!drawingCanvasRef.current,
+      coords: {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        rect: drawingCanvasRef.current?.getBoundingClientRect()
+      }
+    });
+
+    if (!drawingCanvasRef.current || !selectedTool || selectedTool === 'button') return;
+
+    const canvas = drawingCanvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Set up drawing context
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.strokeStyle = drawingState.strokeStyle;
+    ctx.lineWidth = drawingState.lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // For pen tool, start a new path
+    if (selectedTool === 'pen') {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    }
+
+    setDrawingState(prev => ({
+      ...prev,
+      isDrawing: true,
+      startPoint: { x, y },
+      currentPoint: { x, y }
+    }));
+  }, [selectedTool, drawingState.strokeStyle, drawingState.lineWidth]);
+
+  const handleDrawingMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    console.log('Drawing mouse move:', {
+      isDrawing: drawingState.isDrawing,
+      tool: selectedTool,
+      canvasRef: !!drawingCanvasRef.current,
+      startPoint: drawingState.startPoint,
+      coords: {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        rect: drawingCanvasRef.current?.getBoundingClientRect()
+      }
+    });
+
+    if (!drawingCanvasRef.current || !drawingState.isDrawing || !selectedTool || selectedTool === 'button') return;
+
+    const canvas = drawingCanvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !drawingState.startPoint) return;
+
+    // Set drawing styles
+    ctx.strokeStyle = drawingState.strokeStyle;
+    ctx.lineWidth = drawingState.lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    switch (selectedTool) {
+      case 'pen':
+        // For pen tool, continue the path without clearing
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        break;
+      case 'rectangle':
+      case 'oval':
+      case 'line':
+        // For shape tools, clear and redraw preview
+        ctx.clearRect(0, 0, width, height);
+        drawShape(ctx, selectedTool, drawingState.startPoint, { x, y }, drawingState.isShiftPressed);
+        break;
+    }
+
+    setDrawingState(prev => ({
+      ...prev,
+      currentPoint: { x, y }
+    }));
+  }, [drawingState, selectedTool, width, height]);
+
+  const handleDrawingMouseUp = useCallback(async () => {
+    console.log('Drawing mouse up:', {
+      isDrawing: drawingState.isDrawing,
+      tool: selectedTool,
+      canvasRef: !!drawingCanvasRef.current,
+      targetCanvasRef: isEditingBackground ? !!backgroundCanvasRef.current : !!cardCanvasRef.current
+    });
+
+    if (!drawingCanvasRef.current || !cardCanvasRef.current || !drawingState.isDrawing) return;
+
+    // Get the target canvas based on whether we're editing background
+    const targetCanvas = isEditingBackground ? backgroundCanvasRef.current : cardCanvasRef.current;
+    if (!targetCanvas) return;
+
+    const targetCtx = targetCanvas.getContext('2d');
+    const drawingCtx = drawingCanvasRef.current.getContext('2d');
+    
+    if (!targetCtx || !drawingCtx) return;
+
+    // Transfer drawing to target canvas
+    targetCtx.drawImage(drawingCanvasRef.current, 0, 0);
+
+    // Clear drawing canvas
+    drawingCtx.clearRect(0, 0, width, height);
+
+    setDrawingState(prev => ({
+      ...prev,
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null
+    }));
+
+    // Save the bitmap
+    try {
+      const imageData = targetCtx.getImageData(0, 0, width, height);
+      const bitmapPath = isEditingBackground ? card.background.bitmap : card.bitmap;
+      
+      if (bitmapPath) {
+        console.log('Saving bitmap:', {
+          bitmapPath,
+          imageData: {
+            width: imageData.width,
+            height: imageData.height
+          }
+        });
+        await bitmapOperations.saveBitmap(bitmapPath, imageData);
+      }
+    } catch (error) {
+      console.error('Error saving bitmap:', error);
+    }
+  }, [width, height, isEditingBackground, card, bitmapOperations, drawingState.isDrawing, selectedTool]);
+
+  // Default card size if not specified (matches classic HyperCard)
+  const cardWidth = width || 512;
+  const cardHeight = height || 342;
+
+  // Drawing state
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
     buttonId: null,
@@ -117,14 +392,14 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       isDrawing: drawingState.isDrawing,
       isDragging: dragState.isDragging,
       isResizing: resizeState.isResizing,
-      isCreatingButton: drawingState.isCreatingButton,
+      isCreatingButton: drawingState.isDrawing,
       isCompletingResize: resizeState.isCompleting
     });
 
     // Skip card click if we're in the middle of creating a button or completing a resize
-    if (drawingState.isCreatingButton || resizeState.isCompleting) {
+    if (drawingState.isDrawing || resizeState.isCompleting) {
       console.log('Skipping card click during operation:', {
-        isCreatingButton: drawingState.isCreatingButton,
+        isCreatingButton: drawingState.isDrawing,
         isCompletingResize: resizeState.isCompleting
       });
       return;
@@ -191,7 +466,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     return null;
   };
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDownButton = useCallback((e: React.MouseEvent) => {
     // Only handle button operations in button tool mode
     if (selectedTool !== 'button') return;
 
@@ -256,11 +531,12 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      setDrawingState({
-        isDrawing: true,
-        startPoint: { x, y },
-        currentPoint: { x, y }
-      });
+        setDrawingState(prev => ({
+    ...prev,
+    isDrawing: true,
+    startPoint: { x, y },
+    currentPoint: { x, y }
+  }));
     }
   }, [selectedTool, onAddButton, onSelectButton, findButton, isEditingBackground, selectedButtonId, drawingState.isDrawing, dragState.isDragging, resizeState.isResizing]);
 
@@ -300,7 +576,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     }
   }, [selectedTool, onSelectButton, selectedButtonId, isEditingBackground, justCreatedButton]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMoveButton = useCallback((e: React.MouseEvent) => {
     if (resizeState.isResizing && resizeState.buttonId && resizeState.startSize && resizeState.startPosition && onUpdateButton) {
       const rect = e.currentTarget.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -391,7 +667,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     }
   }, [resizeState, dragState, drawingState, onUpdateButton, currentLayer.buttons, isEditingBackground]);
 
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+  const handleMouseUpButton = useCallback((e: React.MouseEvent) => {
     // Handle resizing completion
     if (resizeState.isResizing) {
       console.log('Finishing resize:', { 
@@ -444,7 +720,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       });
 
       // Set flag to prevent card click from firing
-      setDrawingState(prev => ({ ...prev, isCreatingButton: true }));
+      setDrawingState(prev => ({ ...prev, isDrawing: false }));
 
       const startX = Math.min(drawingState.startPoint.x, drawingState.currentPoint.x);
       const startY = Math.min(drawingState.startPoint.y, drawingState.currentPoint.y);
@@ -477,12 +753,12 @@ export const CardComponent: React.FC<CardComponentProps> = ({
 
       // Reset drawing state after a short delay to ensure card click doesn't fire
       setTimeout(() => {
-        setDrawingState({
-          isDrawing: false,
-          startPoint: null,
-          currentPoint: null,
-          isCreatingButton: false
-        });
+            setDrawingState(prev => ({
+      ...prev,
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null
+    }));
       }, 0);
     }
   }, [resizeState, dragState, drawingState, onAddButton, isEditingBackground, currentLayer.buttons.length, selectedButtonId]);
@@ -490,6 +766,9 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   // Calculate the preview rectangle when drawing
   const getPreviewStyle = () => {
     if (!drawingState.isDrawing || !drawingState.startPoint || !drawingState.currentPoint) return null;
+
+    // Only show preview for buttons and shape tools
+    if (selectedTool !== 'button' && selectedTool !== 'rectangle' && selectedTool !== 'oval' && selectedTool !== 'line') return null;
 
     const startX = Math.min(drawingState.startPoint.x, drawingState.currentPoint.x);
     const startY = Math.min(drawingState.startPoint.y, drawingState.currentPoint.y);
@@ -503,7 +782,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       width,
       height,
       border: '1px dashed #000',
-      backgroundColor: 'rgba(0, 0, 0, 0.1)',
+      backgroundColor: selectedTool === 'button' ? 'rgba(0, 0, 0, 0.1)' : 'transparent',
       pointerEvents: 'none' as const
     };
   };
@@ -586,6 +865,8 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   const renderButton = (button: HyperCardButton, isBackground: boolean) => {
     const isSelected = selectedButtonId === button.id;
     const showSelection = isSelected && selectedTool === 'button';
+    const isButtonTool = selectedTool === 'button';
+    const isBrowseTool = selectedTool === 'browse';
 
     return (
       <div
@@ -597,7 +878,11 @@ export const CardComponent: React.FC<CardComponentProps> = ({
           top: button.position.y,
           width: button.size.width,
           height: button.size.height,
-          cursor: selectedTool === 'button' ? 'pointer' : button.linkToCardId ? 'pointer' : 'default'
+          cursor: isButtonTool 
+            ? 'pointer' 
+            : (isBrowseTool && button.linkToCardId) 
+              ? 'pointer' 
+              : 'default'
         }}
         onClick={(e) => handleButtonClick(e, button)}
         onDoubleClick={(e) => handleButtonDoubleClick(e, button)}
@@ -622,25 +907,69 @@ export const CardComponent: React.FC<CardComponentProps> = ({
           cursor: getCursorStyle()
         }}
         onClick={handleCardBackgroundClick}
-        onMouseDown={handleMouseDown}
+        onMouseDown={(e) => {
+          if (selectedTool === 'button') {
+            handleMouseDownButton(e);
+          }
+        }}
         onMouseMove={(e) => {
           // Update cursor based on mouse position
           const cursor = getCursorStyle(e);
           if (e.currentTarget.style.cursor !== cursor) {
             e.currentTarget.style.cursor = cursor;
           }
-          handleMouseMove(e);
+          if (selectedTool === 'button') {
+            handleMouseMoveButton(e);
+          }
         }}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseUp={(e) => {
+          if (selectedTool === 'button') {
+            handleMouseUpButton(e);
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (selectedTool === 'button') {
+            handleMouseUpButton(e);
+          }
+        }}
       >
+        {/* Canvas Layers */}
+        <canvas
+          ref={backgroundCanvasRef}
+          className="absolute inset-0"
+          width={cardWidth}
+          height={cardHeight}
+        />
+        <canvas
+          ref={cardCanvasRef}
+          className="absolute inset-0"
+          width={cardWidth}
+          height={cardHeight}
+        />
+        <canvas
+          ref={drawingCanvasRef}
+          className="absolute inset-0"
+          width={cardWidth}
+          height={cardHeight}
+          style={{ 
+            pointerEvents: selectedTool && selectedTool !== 'button' && selectedTool !== 'browse' ? 'auto' : 'none',
+            cursor: selectedTool && selectedTool !== 'button' && selectedTool !== 'browse' ? 'crosshair' : 'inherit'
+          }}
+          onMouseDown={handleDrawingMouseDown}
+          onMouseMove={handleDrawingMouseMove}
+          onMouseUp={handleDrawingMouseUp}
+          onMouseLeave={handleDrawingMouseUp}
+        />
+
         {/* Drawing Preview */}
         {drawingState.isDrawing && (
           <div style={getPreviewStyle() || {}} />
         )}
 
         {/* Background Layer */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0" style={{ 
+          pointerEvents: selectedTool === 'button' || selectedTool === 'browse' ? 'auto' : 'none' 
+        }}>
           {/* Background Patterns */}
           {(card.background.patterns as HyperCardPattern[]).map(pattern => (
             <div
@@ -681,7 +1010,9 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         </div>
 
         {/* Foreground Layer */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0" style={{ 
+          pointerEvents: selectedTool === 'button' || selectedTool === 'browse' ? 'auto' : 'none' 
+        }}>
           {/* Foreground Patterns */}
           {(card.foreground.patterns as HyperCardPattern[]).map(pattern => (
             <div

@@ -44,6 +44,8 @@ export interface Card {
   isBackground?: boolean;  // Whether this card is a background
   backgroundId?: string;   // Reference to background if not a background card
   script?: string;
+  // Bitmap reference
+  bitmap?: string;  // Path to card's bitmap, relative to stack resources directory
 }
 
 // Card object base interface
