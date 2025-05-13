@@ -12,6 +12,14 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { HyperCardStack, HyperCardButton } from "../types/stack";
 import { Card } from "../types/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Types for what can be selected in the property inspector
 export type InspectorSelectionType = "stack" | "background" | "card" | "button" | "field";
@@ -145,7 +153,8 @@ const ButtonPropertiesPanel: React.FC<{
   button: HyperCardButton;
   isBackground: boolean;
   onUpdate: (button: HyperCardButton, isBackground: boolean) => void;
-}> = ({ button, isBackground, onUpdate }) => {
+  currentStack: HyperCardStack;
+}> = ({ button, isBackground, onUpdate, currentStack }) => {
   return (
     <div className="space-y-4 p-2">
       <div className="space-y-2">
@@ -159,6 +168,45 @@ const ButtonPropertiesPanel: React.FC<{
           }, isBackground)}
           className="h-6 text-sm"
         />
+      </div>
+      
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="linkToCard"
+            checked={!!button.linkToCardId}
+            onCheckedChange={(checked: boolean) => {
+              onUpdate({
+                ...button,
+                linkToCardId: checked ? currentStack.cards[0]?.id : undefined
+              }, isBackground);
+            }}
+          />
+          <Label htmlFor="linkToCard" className="text-sm">Link to Card</Label>
+        </div>
+        
+        {button.linkToCardId && (
+          <Select
+            value={button.linkToCardId}
+            onValueChange={(cardId) => {
+              onUpdate({
+                ...button,
+                linkToCardId: cardId
+              }, isBackground);
+            }}
+          >
+            <SelectTrigger className="h-6 text-sm">
+              <SelectValue placeholder="Select a card" />
+            </SelectTrigger>
+            <SelectContent>
+              {currentStack.cards.map((card) => (
+                <SelectItem key={card.id} value={card.id}>
+                  {card.name || `Card ${currentStack.cards.indexOf(card) + 1}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
     </div>
   );
@@ -213,6 +261,7 @@ export function PropertyInspectorDialog({
           <ButtonPropertiesPanel
             button={button}
             isBackground={isEditingBackground}
+            currentStack={currentStack}
             onUpdate={(updatedButton, isBackground) => {
               // Update the button in the card
               const updatedCard = {

@@ -66,6 +66,7 @@ export interface HyperCardButton {
   script?: string;
   enabled: boolean;
   visible: boolean;
+  linkToCardId?: string;  // ID of the card this button links to
 }
 
 export interface HyperCardField {
