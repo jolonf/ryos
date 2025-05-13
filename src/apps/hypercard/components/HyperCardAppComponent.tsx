@@ -177,11 +177,36 @@ export function HyperCardAppComponent({
         throw new Error(`Directory "${dirPath}" does not exist. Please save to the HyperCard Stacks folder.`);
       }
 
-      // Save the file
+      // Serialize all bitmaps
+      const bitmapData: Record<string, string> = {};
+      const bitmapOps = useStackStore.getState().operations.bitmaps;
+
+      // Serialize background bitmap
+      if (stack.background.bitmap) {
+        const backgroundBitmapData = await bitmapOps.serializeBitmap(stack.background.bitmap);
+        if (backgroundBitmapData) {
+          bitmapData[stack.background.bitmap] = backgroundBitmapData;
+        }
+      }
+
+      // Serialize card bitmaps
+      for (const card of stack.cards) {
+        if (card.bitmap) {
+          const cardBitmapData = await bitmapOps.serializeBitmap(card.bitmap);
+          if (cardBitmapData) {
+            bitmapData[card.bitmap] = cardBitmapData;
+          }
+        }
+      }
+
+      // Save the file with bitmap data
       await saveFile({
         name: fileName,
         path: savePath,
-        content: JSON.stringify(stack),
+        content: JSON.stringify({
+          stack,
+          bitmapData
+        }),
         type: "stack"
       });
 
@@ -214,13 +239,43 @@ export function HyperCardAppComponent({
         appId: "hypercard"
       };
 
-      await handleFileOpen(fileItem);
-      return currentStack!;
+      const content = await handleFileOpen(fileItem);
+      if (typeof content === 'string') {
+        const { stack, bitmapData } = JSON.parse(content);
+
+        // Load all bitmaps into memory
+        const bitmapOps = useStackStore.getState().operations.bitmaps;
+        
+        // Load background bitmap
+        if (stack.background.bitmap && bitmapData[stack.background.bitmap]) {
+          await bitmapOps.deserializeBitmap(stack.background.bitmap, bitmapData[stack.background.bitmap]);
+        }
+
+        // Load card bitmaps
+        for (const card of stack.cards) {
+          if (card.bitmap && bitmapData[card.bitmap]) {
+            await bitmapOps.deserializeBitmap(card.bitmap, bitmapData[card.bitmap]);
+          }
+        }
+
+        // Update the store with the loaded stack
+        useStackStore.setState({
+          currentStack: {
+            ...stack,
+            path
+          },
+          isModified: false,
+          lastSavedPath: path
+        });
+
+        return stack;
+      }
+      throw new Error("Invalid stack file format");
     } catch (error) {
       console.error("Error loading stack:", error);
       throw error;
     }
-  }, [handleFileOpen, currentStack]);
+  }, [handleFileOpen]);
 
   // Override store operations with file system implementations
   useEffect(() => {
@@ -232,63 +287,98 @@ export function HyperCardAppComponent({
 
   // Handle initial data when loading a stack
   useEffect(() => {
-    if (initialData?.path && initialData?.content) {
-      try {
-        const content = initialData.content;
-        if (typeof content === 'string') {
-          const stack = JSON.parse(content);
-          
-          // Check if there's actually a current stack and modifications
-          const { currentStack: existingStack, isModified: hasModifications } = useStackStore.getState();
-          
-          if (existingStack && hasModifications) {
-            setIsConfirmCloseDialogOpen(true);
-            // Store the new stack data to load after confirmation
-            const pendingStack = stack;
-            confirmHandlerRef.current = () => {
-              // Close current stack and load new one
-              operations.closeStack();
+    const loadInitialData = async () => {
+      if (initialData?.path && initialData?.content) {
+        try {
+          const content = initialData.content;
+          if (typeof content === 'string') {
+            const { stack, bitmapData } = JSON.parse(content);
+            
+            // Check if there's actually a current stack and modifications
+            const { currentStack: existingStack, isModified: hasModifications } = useStackStore.getState();
+            
+            if (existingStack && hasModifications) {
+              setIsConfirmCloseDialogOpen(true);
+              // Store the new stack data to load after confirmation
+              confirmHandlerRef.current = async () => {
+                // Close current stack and load new one
+                operations.closeStack();
+
+                // Load all bitmaps into memory
+                const bitmapOps = useStackStore.getState().operations.bitmaps;
+                
+                // Load background bitmap
+                if (stack.background.bitmap && bitmapData[stack.background.bitmap]) {
+                  await bitmapOps.deserializeBitmap(stack.background.bitmap, bitmapData[stack.background.bitmap]);
+                }
+
+                // Load card bitmaps
+                for (const card of stack.cards) {
+                  if (card.bitmap && bitmapData[card.bitmap]) {
+                    await bitmapOps.deserializeBitmap(card.bitmap, bitmapData[card.bitmap]);
+                  }
+                }
+
+                useStackStore.setState({
+                  currentStack: {
+                    ...stack,
+                    path: initialData.path
+                  },
+                  isModified: false,
+                  lastSavedPath: initialData.path
+                });
+                setIsConfirmCloseDialogOpen(false);
+                toast.success(`Loaded stack: ${stack.name}`);
+                // Clear initial data after successful load
+                const clearInitialData = useAppStore.getState().clearInitialData;
+                clearInitialData('hypercard');
+              };
+            } else {
+              // No current stack or no unsaved changes, load directly
+              if (existingStack) {
+                operations.closeStack();
+              }
+
+              // Load all bitmaps into memory
+              const bitmapOps = useStackStore.getState().operations.bitmaps;
+              
+              // Load background bitmap
+              if (stack.background.bitmap && bitmapData[stack.background.bitmap]) {
+                await bitmapOps.deserializeBitmap(stack.background.bitmap, bitmapData[stack.background.bitmap]);
+              }
+
+              // Load card bitmaps
+              for (const card of stack.cards) {
+                if (card.bitmap && bitmapData[card.bitmap]) {
+                  await bitmapOps.deserializeBitmap(card.bitmap, bitmapData[card.bitmap]);
+                }
+              }
+
               useStackStore.setState({
                 currentStack: {
-                  ...pendingStack,
+                  ...stack,
                   path: initialData.path
                 },
                 isModified: false,
                 lastSavedPath: initialData.path
               });
-              setIsConfirmCloseDialogOpen(false);
-              toast.success(`Loaded stack: ${pendingStack.name}`);
+              toast.success(`Loaded stack: ${stack.name}`);
               // Clear initial data after successful load
               const clearInitialData = useAppStore.getState().clearInitialData;
               clearInitialData('hypercard');
-            };
-          } else {
-            // No current stack or no unsaved changes, load directly
-            if (existingStack) {
-              operations.closeStack();
             }
-            useStackStore.setState({
-              currentStack: {
-                ...stack,
-                path: initialData.path
-              },
-              isModified: false,
-              lastSavedPath: initialData.path
-            });
-            toast.success(`Loaded stack: ${stack.name}`);
-            // Clear initial data after successful load
-            const clearInitialData = useAppStore.getState().clearInitialData;
-            clearInitialData('hypercard');
           }
+        } catch (error) {
+          console.error("Error loading stack from initial data:", error);
+          toast.error("Failed to load stack");
+          // Clear initial data even on error to prevent retrying
+          const clearInitialData = useAppStore.getState().clearInitialData;
+          clearInitialData('hypercard');
         }
-      } catch (error) {
-        console.error("Error loading stack from initial data:", error);
-        toast.error("Failed to load stack");
-        // Clear initial data even on error to prevent retrying
-        const clearInitialData = useAppStore.getState().clearInitialData;
-        clearInitialData('hypercard');
       }
-    }
+    };
+
+    loadInitialData();
   }, [initialData, operations]);
 
   // Handle new stack

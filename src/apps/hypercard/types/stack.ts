@@ -100,6 +100,8 @@ export interface BitmapOperations {
   saveBitmap: (bitmapPath: string, imageData: ImageData) => Promise<void>;
   loadBitmap: (bitmapPath: string) => Promise<ImageData>;
   deleteBitmap: (bitmapPath: string) => Promise<void>;
+  serializeBitmap: (bitmapPath: string) => Promise<string | null>;  // Returns base64 string or null if bitmap not found
+  deserializeBitmap: (bitmapPath: string, base64Data: string) => Promise<void>;  // Loads bitmap from base64 string
 }
 
 // Update StackOperations to include bitmap operations
