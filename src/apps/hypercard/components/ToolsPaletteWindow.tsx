@@ -8,21 +8,21 @@ import { cn } from "@/lib/utils";
 // Export the TOOLS constant
 export const TOOLS = [
   // Basic Tools (Top Row)
-  { id: "browse", name: "Browse", icon: "👆" },
-  { id: "button", name: "Button", icon: "🔘" },
-  { id: "field", name: "Field", icon: "📝" },
+  { id: "browse", name: "Browse", icon: "/icons/macpaint/hand.png" },
+  { id: "button", name: "Button", icon: "/icons/hypercard/button.png" },
+  { id: "field", name: "Field", icon: "/icons/hypercard/textfield.png" },
   // Drawing Tools
-  { id: "pen", name: "Pen", icon: "✏️" },
-  { id: "eraser", name: "Eraser", icon: "🧹" },
-  { id: "spray", name: "Spray", icon: "🎨" },
+  { id: "pen", name: "Pen", icon: "/icons/macpaint/pencil.png" },
+  { id: "eraser", name: "Eraser", icon: "/icons/macpaint/eraser.png" },
+  { id: "spray", name: "Spray", icon: "/icons/macpaint/spray.png" },
   // Shapes
-  { id: "rectangle", name: "Rectangle", icon: "⬜" },
-  { id: "oval", name: "Oval", icon: "⭕" },
-  { id: "line", name: "Line", icon: "📏" },
+  { id: "rectangle", name: "Rectangle", icon: "/icons/macpaint/rectangle.png" },
+  { id: "oval", name: "Oval", icon: "/icons/macpaint/oval.png" },
+  { id: "line", name: "Line", icon: "/icons/macpaint/line.png" },
   // Objects
-  { id: "image", name: "Image", icon: "🖼️" },
-  { id: "text", name: "Text", icon: "📄" },
-  { id: "pattern", name: "Pattern", icon: "🎯" },
+  { id: "image", name: "Image", icon: "/icons/hypercard/image.png" },
+  { id: "text", name: "Text", icon: "/icons/macpaint/text.png" },
+  { id: "pattern", name: "Pattern", icon: "/icons/hypercard/pattern.png" },
 ] as const;
 
 export type ToolId = typeof TOOLS[number]["id"];

@@ -806,7 +806,12 @@ export function HyperCardAppComponent({
                         onClick={() => setSelectedTool(tool.id)}
                         title={tool.name}
                       >
-                        <span className="text-lg">{tool.icon}</span>
+                        <img 
+                          src={tool.icon} 
+                          alt={tool.name}
+                          className="w-6 h-6 object-contain"
+                          style={{ imageRendering: 'pixelated' }}
+                        />
                       </Button>
                     ))}
                   </div>
