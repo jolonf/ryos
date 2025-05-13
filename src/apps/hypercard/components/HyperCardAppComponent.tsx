@@ -37,6 +37,7 @@ interface HyperCardMenuBarProps {
   onPreviousCard: () => void;
   onAddCard: () => void;
   onDeleteCard: () => void;
+  onDeleteButton: () => void;
   hasUnsavedChanges: boolean;
   currentStackPath: string | null;
   canNavigateCards: boolean;
@@ -47,6 +48,7 @@ interface HyperCardMenuBarProps {
   isPropertyInspectorVisible: boolean;
   onTogglePropertyInspector: () => void;
   hasCurrentStack: boolean;
+  canDeleteButton: boolean;
 }
 
 interface CardComponentProps {
@@ -651,6 +653,74 @@ export function HyperCardAppComponent({
     });
   }, [currentStack]);
 
+  // Add handler for deleting selected button
+  const handleDeleteButton = useCallback(() => {
+    if (!currentStack || !selectedButtonId || selectedTool !== 'button') return;
+
+    const currentCard = currentStack.cards[currentStack.currentCardIndex];
+    if (!currentCard) return;
+
+    // Find the button in either foreground or background
+    const isBackground = isEditingBackground;
+    const layer = isBackground ? currentCard.background : currentCard.foreground;
+    const button = layer.buttons.find(b => b.id === selectedButtonId);
+    
+    if (!button) return;
+
+    // Create a new card object with the button removed
+    const updatedCard: Card = {
+      ...currentCard,
+      foreground: isBackground ? currentCard.foreground : {
+        ...currentCard.foreground,
+        buttons: currentCard.foreground.buttons.filter(b => b.id !== selectedButtonId)
+      },
+      background: isBackground ? {
+        ...currentCard.background,
+        buttons: currentCard.background.buttons.filter(b => b.id !== selectedButtonId)
+      } : currentCard.background
+    };
+
+    // Update the stack with the new card
+    const updatedStack: HyperCardStack = {
+      ...currentStack,
+      cards: currentStack.cards.map((card, index) => 
+        index === currentStack.currentCardIndex ? updatedCard : card
+      )
+    };
+
+    // Update the stack state
+    useStackStore.setState({
+      currentStack: updatedStack,
+      isModified: true
+    });
+
+    // Clear the selection
+    setSelectedButtonId(null);
+    setInspectorSelection(null);
+
+    toast.success(`Deleted ${button.name || 'button'}`);
+  }, [currentStack, selectedButtonId, selectedTool, isEditingBackground]);
+
+  // Add keyboard event handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle delete/backspace if we're in button tool mode and have a button selected
+      if ((e.key === 'Delete' || e.key === 'Backspace') && 
+          selectedTool === 'button' && 
+          selectedButtonId && 
+          !e.metaKey && // Don't trigger if cmd/ctrl is pressed
+          !e.altKey &&  // Don't trigger if alt is pressed
+          !e.shiftKey)  // Don't trigger if shift is pressed
+      {
+        e.preventDefault(); // Prevent browser back navigation
+        handleDeleteButton();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTool, selectedButtonId, handleDeleteButton]);
+
   if (!isWindowOpen) return null;
 
   return (
@@ -666,8 +736,14 @@ export function HyperCardAppComponent({
         onCloseStack={handleCloseStack}
         onNextCard={() => operations.navigateToNextCard()}
         onPreviousCard={() => operations.navigateToPreviousCard()}
-        onAddCard={handleAddCard}
+        onAddCard={() => {
+          if (currentStack) {
+            const cardNumber = currentStack.cards.length + 1;
+            operations.addCard(`Card ${cardNumber}`);
+          }
+        }}
         onDeleteCard={handleDeleteCard}
+        onDeleteButton={handleDeleteButton}
         hasUnsavedChanges={isModified}
         currentStackPath={currentFileExists ? currentStack?.path || null : null}
         canNavigateCards={!!currentStack && currentStack.cards.length > 1}
@@ -678,6 +754,7 @@ export function HyperCardAppComponent({
         isPropertyInspectorVisible={isPropertyInspectorVisible}
         onTogglePropertyInspector={() => setIsPropertyInspectorVisible(!isPropertyInspectorVisible)}
         hasCurrentStack={!!currentStack}
+        canDeleteButton={selectedTool === 'button' && !!selectedButtonId}
       />
       <WindowFrame
         title={

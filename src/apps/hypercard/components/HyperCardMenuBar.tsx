@@ -26,6 +26,7 @@ export interface HyperCardMenuBarProps {
   onPreviousCard: () => void;
   onAddCard: () => void;
   onDeleteCard: () => void;
+  onDeleteButton: () => void;
   hasUnsavedChanges: boolean;
   currentStackPath: string | null;
   canNavigateCards: boolean;
@@ -34,6 +35,7 @@ export interface HyperCardMenuBarProps {
   isPropertyInspectorVisible: boolean;
   onTogglePropertyInspector: () => void;
   hasCurrentStack: boolean;
+  canDeleteButton: boolean;
 }
 
 export function HyperCardMenuBar({
@@ -49,6 +51,7 @@ export function HyperCardMenuBar({
   onPreviousCard,
   onAddCard,
   onDeleteCard,
+  onDeleteButton,
   hasUnsavedChanges,
   currentStackPath,
   canNavigateCards,
@@ -57,6 +60,7 @@ export function HyperCardMenuBar({
   isPropertyInspectorVisible,
   onTogglePropertyInspector,
   hasCurrentStack,
+  canDeleteButton,
 }: HyperCardMenuBarProps) {
   return (
     <MenuBar>
@@ -159,6 +163,13 @@ export function HyperCardMenuBar({
             Paste
           </DropdownMenuItem>
           <DropdownMenuSeparator className="h-[2px] bg-black my-1" />
+          <DropdownMenuItem
+            onClick={onDeleteButton}
+            disabled={!canDeleteButton}
+            className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
+          >
+            Delete
+          </DropdownMenuItem>
           <DropdownMenuItem
             disabled
             className="text-md h-6 px-3 active:bg-gray-900 active:text-white disabled:opacity-50"
