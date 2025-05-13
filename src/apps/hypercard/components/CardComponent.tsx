@@ -231,6 +231,19 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Get the target canvas based on whether we're editing background
+    const targetCanvas = isEditingBackground ? backgroundCanvasRef.current : cardCanvasRef.current;
+    if (!targetCanvas) return;
+
+    const targetCtx = targetCanvas.getContext('2d');
+    if (!targetCtx) return;
+
+    // For eraser tool, we need to copy the target canvas content to the drawing canvas first
+    if (selectedTool === 'eraser') {
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(targetCanvas, 0, 0);
+    }
+
     ctx.strokeStyle = drawingState.strokeStyle;
     ctx.lineWidth = drawingState.lineWidth;
     ctx.lineCap = 'round';
@@ -240,6 +253,13 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     if (selectedTool === 'pen') {
       ctx.beginPath();
       ctx.moveTo(x, y);
+    } else if (selectedTool === 'eraser') {
+      // For eraser tool, start with a circle
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(x, y, drawingState.lineWidth * 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
     }
 
     setDrawingState(prev => ({
@@ -248,7 +268,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       startPoint: { x, y },
       currentPoint: { x, y }
     }));
-  }, [selectedTool, drawingState.strokeStyle, drawingState.lineWidth]);
+  }, [selectedTool, drawingState.strokeStyle, drawingState.lineWidth, width, height, isEditingBackground]);
 
   const handleDrawingMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     console.log('Drawing mouse move:', {
@@ -285,6 +305,27 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         ctx.lineTo(x, y);
         ctx.stroke();
         break;
+      case 'eraser':
+        // For eraser tool, set composite operation to destination-out
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x, y, drawingState.lineWidth * 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+
+        // Immediately transfer to target canvas
+        const targetCanvas = isEditingBackground ? backgroundCanvasRef.current : cardCanvasRef.current;
+        if (targetCanvas) {
+          const targetCtx = targetCanvas.getContext('2d');
+          if (targetCtx) {
+            targetCtx.globalCompositeOperation = 'destination-out';
+            targetCtx.beginPath();
+            targetCtx.arc(x, y, drawingState.lineWidth * 5, 0, Math.PI * 2);
+            targetCtx.fill();
+            targetCtx.globalCompositeOperation = 'source-over';
+          }
+        }
+        break;
       case 'rectangle':
       case 'oval':
       case 'line':
@@ -298,7 +339,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       ...prev,
       currentPoint: { x, y }
     }));
-  }, [drawingState, selectedTool, width, height]);
+  }, [drawingState, selectedTool, width, height, isEditingBackground]);
 
   const handleDrawingMouseUp = useCallback(async () => {
     console.log('Drawing mouse up:', {
@@ -319,8 +360,11 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     
     if (!targetCtx || !drawingCtx) return;
 
-    // Transfer drawing to target canvas
-    targetCtx.drawImage(drawingCanvasRef.current, 0, 0);
+    // For eraser tool, we've already updated the target canvas during mouse move
+    if (selectedTool !== 'eraser') {
+      // Transfer drawing to target canvas
+      targetCtx.drawImage(drawingCanvasRef.current, 0, 0);
+    }
 
     // Clear drawing canvas
     drawingCtx.clearRect(0, 0, width, height);
