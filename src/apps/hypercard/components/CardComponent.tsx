@@ -346,6 +346,12 @@ export const CardComponent: React.FC<CardComponentProps> = ({
           }
         });
         await bitmapOperations.saveBitmap(bitmapPath, imageData);
+        
+        // Update the stack's modified state
+        useStackStore.setState(state => ({
+          ...state,
+          isModified: true
+        }));
       }
     } catch (error) {
       console.error('Error saving bitmap:', error);
