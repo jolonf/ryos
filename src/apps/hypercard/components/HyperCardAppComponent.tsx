@@ -428,6 +428,13 @@ export function HyperCardAppComponent({
   // Add tools palette state
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
 
+  // Set browse tool as default when opening a stack
+  useEffect(() => {
+    if (currentStack && !selectedTool) {
+      setSelectedTool('browse');
+    }
+  }, [currentStack, selectedTool]);
+
   // Replace separate selection states with a single selection state
   const [selection, setSelection] = useState<SelectionState>({
     type: null,
