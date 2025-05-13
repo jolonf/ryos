@@ -97,6 +97,9 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     startPosition: null
   });
 
+  // Add a state to track if we just created a button
+  const [justCreatedButton, setJustCreatedButton] = useState(false);
+
   // Get the current layer (background or foreground)
   const currentLayer = isEditingBackground ? card.background : card.foreground;
 
@@ -106,6 +109,18 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   }, [currentLayer.buttons]);
 
   const handleCardClick = useCallback((e: React.MouseEvent) => {
+    console.log('Card click event triggered:', {
+      target: e.target,
+      currentTarget: e.currentTarget,
+      selectedTool,
+      selectedButtonId,
+      isDrawing: drawingState.isDrawing,
+      isDragging: dragState.isDragging,
+      isResizing: resizeState.isResizing,
+      isCreatingButton: drawingState.isCreatingButton,
+      isCompletingResize: resizeState.isCompleting
+    });
+
     // Skip card click if we're in the middle of creating a button or completing a resize
     if (drawingState.isCreatingButton || resizeState.isCompleting) {
       console.log('Skipping card click during operation:', {
@@ -115,32 +130,42 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       return;
     }
 
-    // Only handle card clicks if we're not in the middle of an operation
-    if (!drawingState.isDrawing && !dragState.isDragging && !resizeState.isResizing) {
-      // Check if we clicked directly on the card (not on a button)
-      const target = e.target as HTMLElement;
-      const buttonElement = target.closest('[data-button-id]');
-      
-      console.log('Card click:', {
-        clickedOnButton: !!buttonElement,
-        selectedTool,
-        currentSelection: selectedButtonId,
-        isDrawing: drawingState.isDrawing,
-        isDragging: dragState.isDragging,
-        isResizing: resizeState.isResizing,
-        isCreatingButton: drawingState.isCreatingButton,
-        isCompletingResize: resizeState.isCompleting
-      });
+    // Check if we clicked directly on the card (not on a button)
+    const target = e.target as HTMLElement;
+    const buttonElement = target.closest('[data-button-id]');
+    const cardContainer = e.currentTarget as HTMLElement;
+    const isCardBackgroundClick = !buttonElement && (
+      target === cardContainer || 
+      target.closest('.card-container') === cardContainer
+    );
+    
+    console.log('Click analysis:', {
+      clickedOnButton: !!buttonElement,
+      isCardBackgroundClick,
+      targetElement: target.tagName,
+      targetClasses: target.className,
+      currentTargetElement: cardContainer.tagName,
+      currentTargetClasses: cardContainer.className,
+      selectedTool,
+      currentSelection: selectedButtonId
+    });
 
-      // If we didn't click on a button and we're in button tool mode, deselect
-      if (!buttonElement && selectedTool === 'button' && onSelectButton) {
-        onSelectButton(null, isEditingBackground);
-      }
+    // If we clicked on the card background and we're in button tool mode, deselect
+    if (isCardBackgroundClick && selectedTool === 'button' && onSelectButton) {
+      console.log('Attempting to deselect button:', {
+        previousSelection: selectedButtonId,
+        isButtonTool: selectedTool === 'button',
+        hasSelectHandler: !!onSelectButton
+      });
+      onSelectButton(null, isEditingBackground);
     }
 
-    // Call the original onCardClick if provided
-    if (onCardClick) {
-      onCardClick();
+    // Only handle card clicks if we're not in the middle of an operation
+    if (!drawingState.isDrawing && !dragState.isDragging && !resizeState.isResizing) {
+      // Call the original onCardClick if provided
+      if (onCardClick) {
+        onCardClick();
+      }
     }
   }, [drawingState, dragState.isDragging, resizeState, selectedTool, onSelectButton, isEditingBackground, onCardClick, selectedButtonId]);
 
@@ -224,8 +249,8 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       }
     }
 
-    // If we didn't click on a button, start drawing a new one
-    if (onAddButton) {
+    // If we didn't click on a button and we're not in the middle of an operation, start drawing
+    if (onAddButton && !drawingState.isDrawing && !dragState.isDragging && !resizeState.isResizing) {
       console.log('Starting to draw new button');
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -238,6 +263,42 @@ export const CardComponent: React.FC<CardComponentProps> = ({
       });
     }
   }, [selectedTool, onAddButton, onSelectButton, findButton, isEditingBackground, selectedButtonId, drawingState.isDrawing, dragState.isDragging, resizeState.isResizing]);
+
+  // Add a separate click handler for deselection
+  const handleCardBackgroundClick = useCallback((e: React.MouseEvent) => {
+    // Only handle deselection in button tool mode
+    if (selectedTool !== 'button' || !onSelectButton) return;
+
+    // Don't deselect if we just created a button
+    if (justCreatedButton) {
+      console.log('Skipping deselection - button just created');
+      setJustCreatedButton(false);
+      return;
+    }
+
+    // Check if we clicked on the card background (not a button)
+    const target = e.target as HTMLElement;
+    const buttonElement = target.closest('[data-button-id]');
+    const cardContainer = e.currentTarget as HTMLElement;
+    const isCardBackgroundClick = !buttonElement && (
+      target === cardContainer || 
+      target.closest('.card-container') === cardContainer
+    );
+
+    console.log('Card background click:', {
+      isCardBackgroundClick,
+      selectedTool,
+      currentSelection: selectedButtonId,
+      justCreatedButton,
+      targetElement: target.tagName,
+      targetClasses: target.className
+    });
+
+    if (isCardBackgroundClick && selectedButtonId) {
+      console.log('Deselecting button on card background click');
+      onSelectButton(null, isEditingBackground);
+    }
+  }, [selectedTool, onSelectButton, selectedButtonId, isEditingBackground, justCreatedButton]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (resizeState.isResizing && resizeState.buttonId && resizeState.startSize && resizeState.startPosition && onUpdateButton) {
@@ -410,6 +471,8 @@ export const CardComponent: React.FC<CardComponentProps> = ({
         });
 
         onAddButton(newButton, isEditingBackground);
+        // Set flag to prevent deselection
+        setJustCreatedButton(true);
       }
 
       // Reset drawing state after a short delay to ensure card click doesn't fire
@@ -558,7 +621,7 @@ export const CardComponent: React.FC<CardComponentProps> = ({
           height: cardHeight,
           cursor: getCursorStyle()
         }}
-        onClick={handleCardClick}
+        onClick={handleCardBackgroundClick}
         onMouseDown={handleMouseDown}
         onMouseMove={(e) => {
           // Update cursor based on mouse position
