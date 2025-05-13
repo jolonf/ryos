@@ -120,6 +120,11 @@ export function HyperCardAppComponent({
   const handleWindowClose = useCallback(() => {
     if (isModified) {
       setIsConfirmCloseDialogOpen(true);
+      confirmHandlerRef.current = () => {
+        operations.closeStack();
+        setIsConfirmCloseDialogOpen(false);
+        onClose();
+      };
       return;
     }
     operations.closeStack();
@@ -233,8 +238,10 @@ export function HyperCardAppComponent({
         if (typeof content === 'string') {
           const stack = JSON.parse(content);
           
-          // If we have a current stack and it's modified, show confirmation dialog
-          if (currentStack && isModified) {
+          // Check if there's actually a current stack and modifications
+          const { currentStack: existingStack, isModified: hasModifications } = useStackStore.getState();
+          
+          if (existingStack && hasModifications) {
             setIsConfirmCloseDialogOpen(true);
             // Store the new stack data to load after confirmation
             const pendingStack = stack;
@@ -254,15 +261,12 @@ export function HyperCardAppComponent({
               // Clear initial data after successful load
               const clearInitialData = useAppStore.getState().clearInitialData;
               clearInitialData('hypercard');
-              // Reset the handler back to default
-              confirmHandlerRef.current = () => {
-                operations.closeStack();
-                setIsConfirmCloseDialogOpen(false);
-              };
             };
           } else {
             // No current stack or no unsaved changes, load directly
-            operations.closeStack();
+            if (existingStack) {
+              operations.closeStack();
+            }
             useStackStore.setState({
               currentStack: {
                 ...stack,
@@ -285,7 +289,7 @@ export function HyperCardAppComponent({
         clearInitialData('hypercard');
       }
     }
-  }, [initialData, operations, currentStack, isModified]);
+  }, [initialData, operations]);
 
   // Handle new stack
   const handleNewStack = async () => {
@@ -367,6 +371,10 @@ export function HyperCardAppComponent({
   const handleCloseStack = () => {
     if (isModified) {
       setIsConfirmCloseDialogOpen(true);
+      confirmHandlerRef.current = () => {
+        operations.closeStack();
+        setIsConfirmCloseDialogOpen(false);
+      };
       return;
     }
     operations.closeStack();
