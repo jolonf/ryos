@@ -16,6 +16,7 @@ interface CardComponentProps {
   selectedButtonId?: string | null;
   onUpdateButton?: (button: HyperCardButton, isBackground: boolean) => void;
   onTogglePropertyInspector?: () => void;
+  onNavigateToCard?: (cardId: string) => void;
 }
 
 interface DrawingState {
@@ -67,7 +68,8 @@ export const CardComponent: React.FC<CardComponentProps> = ({
   onSelectButton,
   selectedButtonId,
   onUpdateButton,
-  onTogglePropertyInspector
+  onTogglePropertyInspector,
+  onNavigateToCard
 }) => {
   // Default card size if not specified (matches classic HyperCard)
   const cardWidth = width || 512;
@@ -498,6 +500,25 @@ export const CardComponent: React.FC<CardComponentProps> = ({
     }
   }, [selectedTool, onTogglePropertyInspector, onSelectButton, selectedButtonId, isEditingBackground]);
 
+  // Add button click handler for browse mode
+  const handleButtonClick = useCallback((e: React.MouseEvent, button: HyperCardButton) => {
+    e.stopPropagation(); // Prevent card click from firing
+
+    // If we're in button tool mode, don't handle clicks
+    if (selectedTool === 'button') return;
+
+    console.log('Button click in browse mode:', {
+      buttonId: button.id,
+      linkToCardId: button.linkToCardId,
+      selectedTool
+    });
+
+    // If the button has a linked card and we have a navigation handler, navigate to it
+    if (button.linkToCardId && onNavigateToCard) {
+      onNavigateToCard(button.linkToCardId);
+    }
+  }, [selectedTool, onNavigateToCard]);
+
   // Render a button with selection state
   const renderButton = (button: HyperCardButton, isBackground: boolean) => {
     const isSelected = selectedButtonId === button.id;
@@ -513,7 +534,9 @@ export const CardComponent: React.FC<CardComponentProps> = ({
           top: button.position.y,
           width: button.size.width,
           height: button.size.height,
+          cursor: selectedTool === 'button' ? 'pointer' : button.linkToCardId ? 'pointer' : 'default'
         }}
+        onClick={(e) => handleButtonClick(e, button)}
         onDoubleClick={(e) => handleButtonDoubleClick(e, button)}
       >
         <div 

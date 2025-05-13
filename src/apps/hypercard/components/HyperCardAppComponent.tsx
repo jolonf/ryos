@@ -55,6 +55,12 @@ interface CardComponentProps {
   isActive: boolean;
   isEditingBackground: boolean;
   selectedTool: ToolId | null;
+  onAddButton: (button: HyperCardButton, isBackground: boolean) => void;
+  onSelectButton: (button: HyperCardButton | null, isBackground: boolean) => void;
+  selectedButtonId: string | null;
+  onUpdateButton: (button: HyperCardButton, isBackground: boolean) => void;
+  onTogglePropertyInspector: () => void;
+  onNavigateToCard: (cardId: string) => void;
 }
 
 // Add a more explicit selection state
@@ -720,6 +726,15 @@ export function HyperCardAppComponent({
                   selectedButtonId={selectedButtonId}
                   onUpdateButton={handleUpdateButton}
                   onTogglePropertyInspector={() => setIsPropertyInspectorVisible(true)}
+                  onNavigateToCard={async (cardId) => {
+                    if (!currentStack) return;
+                    try {
+                      await useStackStore.getState().operations.navigateToCard(cardId);
+                    } catch (error) {
+                      console.error("Error navigating to card:", error);
+                      toast.error("Failed to navigate to card");
+                    }
+                  }}
                 />
               </div>
             </div>
