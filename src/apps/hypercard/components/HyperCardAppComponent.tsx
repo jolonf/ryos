@@ -116,6 +116,16 @@ export function HyperCardAppComponent({
   // Add state to track if current file exists
   const [currentFileExists, setCurrentFileExists] = useState(false);
 
+  // Handle window close
+  const handleWindowClose = useCallback(() => {
+    if (isModified) {
+      setIsConfirmCloseDialogOpen(true);
+      return;
+    }
+    operations.closeStack();
+    onClose();
+  }, [isModified, operations, onClose]);
+
   // Update file existence check when stack or path changes
   useEffect(() => {
     if (currentStack?.path) {
@@ -726,7 +736,7 @@ export function HyperCardAppComponent({
   return (
     <>
       <HyperCardMenuBar
-        onClose={onClose}
+        onClose={handleWindowClose}
         onShowHelp={() => setIsHelpDialogOpen(true)}
         onShowAbout={() => setIsAboutDialogOpen(true)}
         onNewStack={() => operations.newStack("Untitled Stack")}
@@ -766,7 +776,7 @@ export function HyperCardAppComponent({
               }${isModified ? " •" : ""}`
             : "Untitled Stack"
         }
-        onClose={handleCloseStack}
+        onClose={handleWindowClose}
         isForeground={isForeground}
         appId="hypercard"
       >
