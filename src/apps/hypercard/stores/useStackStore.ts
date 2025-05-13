@@ -132,17 +132,20 @@ export const useStackStore = create<StackStore>((set, get) => {
         const newCard = await createNewCard(name, state.currentStack.background);
         const cards = [...state.currentStack.cards];
         
-        // Insert at position or append to end
-        if (typeof position === 'number' && position >= 0 && position <= cards.length) {
-          cards.splice(position, 0, newCard);
-        } else {
-          cards.push(newCard);
-        }
+        // If no position specified, insert after current card
+        const insertPosition = typeof position === 'number' 
+          ? position 
+          : state.currentStack.currentCardIndex + 1;
+        
+        // Insert at position
+        cards.splice(insertPosition, 0, newCard);
 
+        // Update the stack and navigate to the new card
         set({
           currentStack: {
             ...state.currentStack,
             cards,
+            currentCardIndex: insertPosition, // Navigate to the new card
             metadata: {
               ...state.currentStack.metadata,
               modifiedAt: Date.now()
