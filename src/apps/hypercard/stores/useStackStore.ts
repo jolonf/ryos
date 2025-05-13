@@ -87,7 +87,7 @@ export const useStackStore = create<StackStore>((set, get) => {
 
         set({
           currentStack: stack,
-          isModified: true,
+          isModified: false,  // Don't mark as modified until actual changes are made
           lastSavedPath: null,
           metadata: stack.metadata
         });
